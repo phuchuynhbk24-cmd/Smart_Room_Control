@@ -1,0 +1,21 @@
+# STM32CubeIDE & GCC Build Artifacts
+Debug/
+Release/
+*.o
+*.d
+*.su
+*.elf
+*.bin
+*.hex
+*.map
+*.list
+
+# Temporary files
+test_cli.txt
+test_script.txt
+*.tmp
+*.bak
+
+# OS specific files
+.DS_Store
+Thumbs.db
