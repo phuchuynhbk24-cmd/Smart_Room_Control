@@ -35,12 +35,14 @@ Hệ thống "Smart Room Control" sử dụng vi điều khiển STM32F103C8T6 l
 ### 2.2. Cơ sở Tính toán & Lựa chọn Tần số
 
 1. **Tần số lõi CPU (SYSCLK / HCLK = 72 MHz):**
-   * Sử dụng thạch anh ngoài $f_{\text{HSE}} = 8.0\text{ MHz}$ qua bộ nhân tần số PLL Mul 9:
-     $$f_{\text{SYSCLK}} = f_{\text{HSE}} \times 9 = 8.0\text{ MHz} \times 9 = 72.0\text{ MHz}$$
+   * Sử dụng thạch anh ngoài `f_HSE = 8.0 MHz` qua bộ nhân tần số PLL Mul 9:
+     ```text
+     f_SYSCLK = f_HSE × 9 = 8.0 MHz × 9 = 72.0 MHz
+     ```
    * Đây là mức xung nhịp tối đa cho phép của dòng STM32F103, đảm bảo CPU đủ năng lực xử lý giao diện đồ họa ILI9341 mượt mà, tính toán giải thuật điều khiển và đáp ứng ngắt thời gian thực.
 2. **Phân phối Bus APB1 và APB2:**
-   * **Bus APB2 (PCLK2 = 72 MHz):** Bộ chia $\text{HCLK\_DIV1}$ đưa xung nhịp tối đa $72\text{ MHz}$ vào các ngoại vi tốc độ cao: SPI1 (TFT), ADC1, USART1, và toàn bộ khối GPIO.
-   * **Bus APB1 (PCLK1 = 36 MHz):** Giới hạn phần cứng của APB1 trên STM32F1 là $36\text{ MHz}$, do đó bộ chia $\text{HCLK\_DIV2}$ được áp dụng ($72\text{ MHz} / 2 = 36\text{ MHz}$) để cấp xung cho SPI2 (Touch) và Timer TIM2.
+   * **Bus APB2 (PCLK2 = 72 MHz):** Bộ chia `HCLK_DIV1` đưa xung nhịp tối đa `72 MHz` vào các ngoại vi tốc độ cao: SPI1 (TFT), ADC1, USART1, và toàn bộ khối GPIO.
+   * **Bus APB1 (PCLK1 = 36 MHz):** Giới hạn phần cứng của APB1 trên STM32F1 là `36 MHz`, do đó bộ chia `HCLK_DIV2` được áp dụng (`72 MHz / 2 = 36 MHz`) để cấp xung cho SPI2 (Touch) và Timer TIM2.
 3. **Cấu hình Debug SWD và Tắt JTAG:**
    * Mặc định sau Reset, STM32F1 kích hoạt chế độ nạp JTAG 5 chân (chiếm dụng `PA13, PA14, PA15, PB3, PB4`).
    * Hệ thống cấu hình mục Debug là **Serial Wire** và thực thi lệnh sinh mã `__HAL_AFIO_REMAP_SWJ_NOJTAG()`. Lựa chọn này giữ lại 2 chân `PA13` và `PA14` cho nạp nạp ST-Link, đồng thời giải phóng an toàn 3 chân `PA15, PB3, PB4` để làm các nút bấm vật lý.
@@ -64,16 +66,22 @@ Hệ thống "Smart Room Control" sử dụng vi điều khiển STM32F103C8T6 l
 ### 3.2. Cơ sở Kỹ thuật & Lựa chọn Tần số
 
 1. **Lựa chọn Bus SPI1 trên APB2:**
-   * Màn hình TFT ILI9341 có độ phân giải $240 \times 320$ pixels, mỗi pixel yêu cầu 16-bit màu (RGB565). Một frame đầy đủ đòi hỏi truyền:
-     $$240 \times 320 \times 2 = 153,600\text{ bytes} \approx 1.23\text{ Mbits/frame}$$
-   * Giao tiếp SPI1 được đặt trên bus APB2 ($72\text{ MHz}$). Bộ chia BaudRate Prescaler được chọn ở mức **DIV4**:
-     $$f_{\text{SPI1}} = \frac{f_{\text{PCLK2}}}{4} = \frac{72.0\text{ MHz}}{4} = 18.0\text{ MBits/s}$$
-   * Tần số $18\text{ MHz}$ nằm trong vùng hoạt động an toàn của ILI9341 (chu kỳ xung $55.5\text{ ns}$, đáp ứng tốt chuẩn thời gian ghi dữ liệu của IC điều khiển hiển thị), đảm bảo tốc độ refresh khung hình nhanh, không bị xé hình.
+   * Màn hình TFT ILI9341 có độ phân giải 240 × 320 pixels, mỗi pixel yêu cầu 16-bit màu (RGB565). Một frame đầy đủ đòi hỏi truyền:
+     ```text
+     240 × 320 × 2 = 153,600 bytes ≈ 1.23 Mbits/frame
+     ```
+   * Giao tiếp SPI1 được đặt trên bus APB2 (72 MHz). Bộ chia BaudRate Prescaler được chọn ở mức **DIV4**:
+     ```text
+     f_SPI1 = f_PCLK2 / 4 = 72.0 MHz / 4 = 18.0 MBits/s
+     ```
+   * Tần số `18 MHz` nằm trong vùng hoạt động an toàn của ILI9341 (chu kỳ xung `55.5 ns`, đáp ứng tốt chuẩn thời gian ghi dữ liệu của IC điều khiển hiển thị), đảm bảo tốc độ refresh khung hình nhanh, không bị xé hình.
 2. **Cấu hình PWM Đèn nền (TIM2_CH2):**
-   * Tần số PWM được chọn là $1.0\text{ kHz}$ nhằm tránh hiện tượng nhấp nháy mắt người (flickering) và không gây rít âm tần từ cuộn cảm.
-   * Với Timer Clock $f_{\text{TIM}} = 72\text{ MHz}$, thiết lập: Prescaler = 71, Period (ARR) = 999:
-     $$f_{\text{PWM}} = \frac{72.0\text{ MHz}}{(71 + 1) \times (999 + 1)} = 1,000\text{ Hz} = 1.0\text{ kHz}$$
-   * Cho phép điều chỉnh độ phân giải sáng 1000 mức ($0.1\%$/bước).
+   * Tần số PWM được chọn là `1.0 kHz` nhằm tránh hiện tượng nhấp nháy mắt người (flickering) và không gây rít âm tần từ cuộn cảm.
+   * Với Timer Clock `f_TIM = 72 MHz`, thiết lập: Prescaler = 71, Period (ARR) = 999:
+     ```text
+     f_PWM = 72.0 MHz / ((71 + 1) × (999 + 1)) = 1,000 Hz = 1.0 kHz
+     ```
+   * Cho phép điều chỉnh độ phân giải sáng 1000 mức (0.1%/bước).
 3. **Quy hoạch đường mạch PCB:** Dải chân từ `PA1` đến `PA7` gồm 7 chân liên tiếp trên cùng một cạnh của vi điều khiển, cho phép kéo bus cáp màn hình thẳng hàng mà không phải bắt chéo dây.
 
 ---
@@ -93,11 +101,13 @@ Hệ thống "Smart Room Control" sử dụng vi điều khiển STM32F103C8T6 l
 ### 4.2. Cơ sở Kỹ thuật & Lựa chọn Tần số
 
 1. **Lựa chọn Bus SPI2 trên APB1 và Giới hạn Tần số Tối đa:**
-   * SPI2 nằm trên bus APB1 ($f_{\text{PCLK1}} = 36\text{ MHz}$).
-   * **Nguyên tắc bắt buộc:** Datasheet của IC XPT2046 quy định tần số DCLK tối đa là **$2.5\text{ MHz}$** (chu kỳ xung tối thiểu $400\text{ ns}$ để bộ ADC 12-bit lấy mẫu ổn định).
+   * SPI2 nằm trên bus APB1 (`f_PCLK1 = 36 MHz`).
+   * **Nguyên tắc bắt buộc:** Datasheet của IC XPT2046 quy định tần số DCLK tối đa là **2.5 MHz** (chu kỳ xung tối thiểu `400 ns` để bộ ADC 12-bit lấy mẫu ổn định).
    * Do đó, bộ chia BaudRate Prescaler được chọn là **DIV16**:
-     $$f_{\text{SPI2}} = \frac{f_{\text{PCLK1}}}{16} = \frac{36.0\text{ MHz}}{16} = 2.25\text{ MBits/s} < 2.5\text{ MHz}$$
-   * Tần số $2.25\text{ MBits/s}$ đạt tốc độ đọc tọa độ cao nhất trong phạm vi an toàn, loại bỏ hoàn toàn nguy cơ đọc về giá trị rác (`0x000` hoặc `0xFFF`) do vi phạm thời gian trích xuất mẫu.
+     ```text
+     f_SPI2 = f_PCLK1 / 16 = 36.0 MHz / 16 = 2.25 MBits/s (< 2.5 MHz)
+     ```
+   * Tần số `2.25 MBits/s` đạt tốc độ đọc tọa độ cao nhất trong phạm vi an toàn, loại bỏ hoàn toàn nguy cơ đọc về giá trị rác (`0x000` hoặc `0xFFF`) do vi phạm thời gian trích xuất mẫu.
 2. **Cấu hình Ngắt Chạm (EXTI Line 11):**
    * Chân `PB11` (`TOUCH_IRQ`) được cấu hình ngắt cạnh rơi (**Falling Edge Trigger**) kèm điện trở kéo lên nội (**Pull-Up**).
    * Khi người dùng chạm vào bề mặt màn hình, ngõ ra `PENIRQ` của XPT2046 bị kéo xuống mức 0V, kích hoạt ngắt để MCU đọc tọa độ ngay lập tức mà không cần polling liên tục, tiết kiệm tài nguyên CPU.
@@ -111,7 +121,7 @@ Hệ thống "Smart Room Control" sử dụng vi điều khiển STM32F103C8T6 l
 
 | Chân MCU | Vị trí LQFP48 | Signal Name | Cấu hình CubeMX | Chức năng kỹ thuật |
 | :--- | :---: | :--- | :--- | :--- |
-| **PA15** | 38 | `BTN_MODE` | GPXTI15 (EXTI) | Nút 1: Chuyển chế độ AUTO $\leftrightarrow$ MANUAL |
+| **PA15** | 38 | `BTN_MODE` | GPXTI15 (EXTI) | Nút 1: Chuyển chế độ AUTO ↔ MANUAL |
 | **PB3** | 39 | `BTN_LIGHT` | GPXTI3 (EXTI) | Nút 2: Bật/Tắt Đèn (Light On/Off) |
 | **PB4** | 40 | `BTN_FAN` | GPXTI4 (EXTI) | Nút 3: Bật/Tắt Quạt (Fan On/Off) |
 | **PB9** | 46 | `BTN_DEHUM` | GPXTI9 (EXTI) | Nút 4: Bật/Tắt Máy hút ẩm (Dehum On/Off) |
@@ -121,10 +131,10 @@ Hệ thống "Smart Room Control" sử dụng vi điều khiển STM32F103C8T6 l
 1. **Phân bổ Line Ngắt Độc lập 100%:**
    * Trong kiến trúc STM32F1, thanh ghi điều khiển ngắt `AFIO_EXTICR` chia sẻ chung đường ngắt theo số thứ tự của chân (ví dụ: `PAx` và `PBx` sẽ dùng chung `EXTIx` và chỉ được chọn một trong hai).
    * Bốn nút nhấn được thiết kế nằm trên 4 Line ngắt hoàn toàn độc lập:
-     * Nút 1: Chân `PA15` $\rightarrow$ EXTI Line 15 (Vector `EXTI15_10_IRQn`)
-     * Nút 2: Chân `PB3`  $\rightarrow$ EXTI Line 3  (Vector `EXTI3_IRQn`)
-     * Nút 3: Chân `PB4`  $\rightarrow$ EXTI Line 4  (Vector `EXTI4_IRQn`)
-     * Nút 4: Chân `PB9`  $\rightarrow$ EXTI Line 9  (Vector `EXTI9_5_IRQn`)
+     * Nút 1: Chân `PA15` → EXTI Line 15 (Vector `EXTI15_10_IRQn`)
+     * Nút 2: Chân `PB3`  → EXTI Line 3  (Vector `EXTI3_IRQn`)
+     * Nút 3: Chân `PB4`  → EXTI Line 4  (Vector `EXTI4_IRQn`)
+     * Nút 4: Chân `PB9`  → EXTI Line 9  (Vector `EXTI9_5_IRQn`)
    * Không có bất kỳ sự trùng lặp số chân nào, đảm bảo cả 4 nút bấm đều bắt được ngắt độc lập tại mọi thời điểm.
 2. **Cấu hình Điện môi & Cạnh Ngắt:**
    * Cả 4 chân đều cấu hình **Input with Pull-Up**, ngắt cạnh rơi (**Falling Edge**).
@@ -147,15 +157,17 @@ Hệ thống "Smart Room Control" sử dụng vi điều khiển STM32F103C8T6 l
 1. **Cảm biến Ánh sáng LDR (ADC1_IN0):**
    * Sử dụng kênh `ADC1_IN0` trên chân `PA0`.
    * **Tần số xung ADC Clock:**
-     $$f_{\text{ADCCLK}} = \frac{f_{\text{PCLK2}}}{6} = \frac{72.0\text{ MHz}}{6} = 12.0\text{ MHz} < 14.0\text{ MHz}$$
+     ```text
+     f_ADCCLK = f_PCLK2 / 6 = 72.0 MHz / 6 = 12.0 MHz (< 14.0 MHz)
+     ```
      Đạt độ chính xác chuyển đổi cao nhất theo khuyến nghị của nhà sản xuất STM32.
-   * **Thời gian lấy mẫu:** $55.5\text{ cycles}$ giúp tụ lấy mẫu $C_{\text{SAMPLE}}$ nạp đủ điện tích từ mạch phân áp quang trở có trở kháng tương đối cao, triệt tiêu sai số đọc.
+   * **Thời gian lấy mẫu:** `55.5 cycles` giúp tụ lấy mẫu nạp đủ điện tích từ mạch phân áp quang trở có trở kháng tương đối cao, triệt tiêu sai số đọc.
 2. **Cảm biến DHT22 (PA8 - 5V-Tolerant Protection):**
    * Chân `PA8` được cấu hình **GPIO_Output Open-Drain** kèm **Pull-Up**.
-   * **Bảo vệ phần cứng:** Chân `PA8` là chân chịu được mức điện áp 5V (**FT - Five-volt Tolerant**). Do cảm biến DHT22 hoạt động chính xác nhất khi cấp nguồn 5V và có điện trở kéo lên 5V, việc sử dụng chân FT bảo vệ cổng GPIO của STM32 không bị hỏng do quá áp ($> 3.6\text{V}$).
+   * **Bảo vệ phần cứng:** Chân `PA8` là chân chịu được mức điện áp 5V (**FT - Five-volt Tolerant**). Do cảm biến DHT22 hoạt động chính xác nhất khi cấp nguồn 5V và có điện trở kéo lên 5V, việc sử dụng chân FT bảo vệ cổng GPIO của STM32 không bị hỏng do quá áp (> 3.6V).
 3. **Cảm biến Chuyển động PIR (PB10):**
    * Cấu hình **GPIO_EXTI10**, ngắt cạnh lên (**Rising Edge Trigger**), điện trở nội **Pull-Down**.
-   * Khi cảm biến phát hiện chuyển động, ngõ ra kích mức logic HIGH ($3.3\text{V}$), tạo sườn lên đánh thức tác vụ bật đèn trong thuật toán điều khiển tự động.
+   * Khi cảm biến phát hiện chuyển động, ngõ ra kích mức logic HIGH (3.3V), tạo sườn lên đánh thức tác vụ bật đèn trong thuật toán điều khiển tự động.
 
 ---
 
@@ -181,8 +193,8 @@ Hệ thống "Smart Room Control" sử dụng vi điều khiển STM32F103C8T6 l
    * Bốn chân output relay nằm liền một khối trên cạnh trên của vi điều khiển, giúp Member 3 kéo đường mạch bus song song nối thẳng vào module 4 Relay (hoặc IC đệm cách ly quang Optocoupler) mà không cắt ngang các đường tín hiệu analog hay SPI.
 2. **Cụm LED trạng thái:** Được điều khiển đồng bộ thông qua tầng `output_manager` của Coder 2 (khi Relay đóng thì LED kênh sáng, Relay ngắt thì LED kênh tắt).
 3. **Chân chẩn đoán `PC13` trên IC rời:**
-   * Chân `PC13` thuộc khối nguồn Backup Domain, có dòng tải giới hạn $3\text{ mA}$.
-   * Chân này cấu hình **Open-Drain, Low Speed** để điều khiển một LED báo nhịp tim hệ thống (nhấp nháy chu kỳ $500\text{ms}$). Nếu thiết kế LED ngoài trên PCB, điện trở hạn dòng bắt buộc phải $\ge 1\text{k}\Omega$ để bảo vệ công tắc nguồn nội của chip.
+   * Chân `PC13` thuộc khối nguồn Backup Domain, có dòng tải giới hạn `3 mA`.
+   * Chân này cấu hình **Open-Drain, Low Speed** để điều khiển một LED báo nhịp tim hệ thống (nhấp nháy chu kỳ `500 ms`). Nếu thiết kế LED ngoài trên PCB, điện trở hạn dòng bắt buộc phải ≥ 1 kΩ để bảo vệ công tắc nguồn nội của chip.
 
 ---
 
@@ -197,7 +209,7 @@ Hệ thống "Smart Room Control" sử dụng vi điều khiển STM32F103C8T6 l
 
 ### 8.2. Cơ sở Kỹ thuật & Thông số Truyền thông
 
-* **Tốc độ truyền (Baudrate):** $115200\text{ bps}$.
+* **Tốc độ truyền (Baudrate):** `115200 bps`.
 * **Khung truyền:** 8 Data bits, No parity, 1 Stop bit (8N1).
 * **Ứng dụng thực tế:** Phục vụ override hàm `__io_putchar` để sử dụng lệnh `printf()` chuẩn trong C. Toàn bộ thông số cảm biến (`temperature`, `humidity`, `light`, `motion`) và trạng thái chuyển mode (`AUTO/MANUAL`) được đẩy liên tục lên Serial Monitor của máy tính, hỗ trợ tối đa cho việc kiểm thử thuật toán của Coder 2 và kiểm tra giao diện HMI của Coder 1.
 
@@ -209,11 +221,11 @@ Hệ thống "Smart Room Control" sử dụng vi điều khiển STM32F103C8T6 l
 
 | Hạng mục kiểm tra | Thông số thiết kế | Trạng thái trong file `.ioc` | Kết quả đối chứng |
 | :--- | :--- | :--- | :---: |
-| **Xung nhịp CPU (SYSCLK)** | 72.0 MHz (HSE 8MHz $\times$ PLL 9) | `RCC.SYSCLKFreq_VALUE=72000000` | **ĐẠT** |
+| **Xung nhịp CPU (SYSCLK)** | 72.0 MHz (HSE 8MHz × PLL 9) | `RCC.SYSCLKFreq_VALUE=72000000` | **ĐẠT** |
 | **Xung nhịp Bus APB1 / APB2** | APB1 = 36 MHz, APB2 = 72 MHz | `RCC.APB1Freq_Value=36000000`, `APB2=72000000` | **ĐẠT** |
 | **Chuẩn nạp Debug** | Serial Wire (Tắt JTAG) | `SYS.Debug=Serial Wire`, `PA13/PA14=Serial_Wire` | **ĐẠT** |
-| **Tốc độ SPI1 (ILI9341)** | Prescaler DIV4 ($18\text{ MBits/s}$) | `SPI1.BaudRatePrescaler=SPI_BAUDRATEPRESCALER_4` | **ĐẠT** |
-| **Tốc độ SPI2 (XPT2046)** | Prescaler DIV16 ($2.25\text{ MBits/s}$) | `SPI2.BaudRatePrescaler=SPI_BAUDRATEPRESCALER_16`| **ĐẠT** |
+| **Tốc độ SPI1 (ILI9341)** | Prescaler DIV4 (18 MBits/s) | `SPI1.BaudRatePrescaler=SPI_BAUDRATEPRESCALER_4` | **ĐẠT** |
+| **Tốc độ SPI2 (XPT2046)** | Prescaler DIV16 (2.25 MBits/s) | `SPI2.BaudRatePrescaler=SPI_BAUDRATEPRESCALER_16`| **ĐẠT** |
 | **PWM Đèn nền (PA1)** | TIM2 CH2, Tần số 1 kHz | `SH.S_TIM2_CH2.0=TIM2_CH2,PWM Generation2 CH2` | **ĐẠT** |
 | **ADC1 Cảm biến LDR (PA0)** | ADC1_IN0, lấy mẫu 55.5 cycles | `ADC1.SamplingTime...=ADC_SAMPLETIME_55CYCLES_5` | **ĐẠT** |
 | **1-Wire DHT22 (PA8)** | Output Open-Drain, 5V-Tolerant | `PA8.GPIO_ModeDefaultOD=GPIO_MODE_OUTPUT_OD` | **ĐẠT** |
