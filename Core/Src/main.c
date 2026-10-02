@@ -21,7 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "ili9341.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -105,7 +105,8 @@ int main(void)
   MX_TIM2_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
-
+  /* Initialize ILI9341 TFT display driver (turns backlight HIGH on PA1) */
+  ili9341_init();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -115,6 +116,57 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+    /* 1. Full-screen color cycling test (RGB wipe) */
+    ili9341_fill_screen(ILI9341_RED);
+    HAL_Delay(1000);
+    ili9341_fill_screen(ILI9341_GREEN);
+    HAL_Delay(1000);
+    ili9341_fill_screen(ILI9341_BLUE);
+    HAL_Delay(1000);
+    ili9341_fill_screen(ILI9341_BLACK);
+    HAL_Delay(500);
+
+    /* 2. Rectangular fill test (UI card layout demo) */
+    /* Header bar (240 x 30) */
+    ili9341_fill_rect(0, 0, 240, 30, ILI9341_NAVY);
+
+    /* Card 1: Lighting status */
+    ili9341_fill_rect(15, 45, 95, 70, ILI9341_ORANGE);
+
+    /* Card 2: Fan status */
+    ili9341_fill_rect(130, 45, 95, 70, ILI9341_DARKCYAN);
+
+    /* Card 3: Sensor readings */
+    ili9341_fill_rect(15, 130, 95, 70, ILI9341_DARKGREEN);
+
+    /* Card 4: Auto mode indicator */
+    ili9341_fill_rect(130, 130, 95, 70, ILI9341_PURPLE);
+
+    /* Footer bar */
+    ili9341_fill_rect(0, 290, 240, 30, ILI9341_DARKGREY);
+    HAL_Delay(2500);
+
+    /* 3. Pixel rendering test: diagonal intersecting lines and border frame */
+    ili9341_fill_screen(ILI9341_BLACK);
+
+    for (uint16_t i = 0; i < 240; i++)
+    {
+      uint16_t y = (uint32_t)i * 320 / 240;
+      ili9341_draw_pixel(i, y, ILI9341_YELLOW);
+      ili9341_draw_pixel(239 - i, y, ILI9341_CYAN);
+    }
+
+    for (uint16_t x = 0; x < 240; x++)
+    {
+      ili9341_draw_pixel(x, 0, ILI9341_WHITE);
+      ili9341_draw_pixel(x, 319, ILI9341_WHITE);
+    }
+    for (uint16_t y = 0; y < 320; y++)
+    {
+      ili9341_draw_pixel(0, y, ILI9341_WHITE);
+      ili9341_draw_pixel(239, y, ILI9341_WHITE);
+    }
+    HAL_Delay(3000);
   }
   /* USER CODE END 3 */
 }
@@ -392,7 +444,7 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(SYS_HEARTBEAT_GPIO_Port, SYS_HEARTBEAT_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, LCD_RST_Pin|LCD_DC_Pin|LCD_CS_Pin|DHT22_DATA_Pin
+  HAL_GPIO_WritePin(GPIOA, LCD_BL_Pin|LCD_RST_Pin|LCD_DC_Pin|LCD_CS_Pin|DHT22_DATA_Pin
                           |LED_CH1_Pin|LED_CH2_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
@@ -406,8 +458,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(SYS_HEARTBEAT_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : LCD_RST_Pin LCD_DC_Pin LCD_CS_Pin */
-  GPIO_InitStruct.Pin = LCD_RST_Pin|LCD_DC_Pin|LCD_CS_Pin;
+  /*Configure GPIO pins : LCD_BL_Pin LCD_RST_Pin LCD_DC_Pin LCD_CS_Pin */
+  GPIO_InitStruct.Pin = LCD_BL_Pin|LCD_RST_Pin|LCD_DC_Pin|LCD_CS_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;

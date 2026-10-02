@@ -24,5 +24,7 @@ HARDWARE
 * **Chấp hành:** 4 Relay (Quạt, Đèn 1, Đèn 2, Hút ẩm) & 4 LED trạng thái
 * **Nút bấm:** 4 Buttons vật lý (MODE, LIGHT, FAN, DEHUM)
 
-## 3. Tài liệu kỹ thuật
-Chi tiết bảng phân bổ chân và tính toán tần số xem tại: [docs/PIN_MAPPING_REPORT.md](docs/PIN_MAPPING_REPORT.md)
+## 3. Tài liệu kỹ thuật & Báo cáo tiến độ
+* **Báo cáo phân bổ chân và cấu hình hệ thống:** [docs/PIN_MAPPING_REPORT.md](docs/PIN_MAPPING_REPORT.md)
+* **Báo cáo Tuần 1 (Coder 1 - Driver TFT LCD ILI9341):** [docs/CODER1_WEEK1_ILI9341_REPORT.md](docs/CODER1_WEEK1_ILI9341_REPORT.md)
+
