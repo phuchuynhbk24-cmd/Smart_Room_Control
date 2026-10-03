@@ -29,11 +29,11 @@ extern "C" {
 #define LCD_PIXEL_WIDTH             240
 #define LCD_PIXEL_HEIGHT            320
 
-/* Expanded calibration values (ADC range: 180..3900) */
-#define XPT2046_CAL_X_MIN           180
-#define XPT2046_CAL_X_MAX           3900
-#define XPT2046_CAL_Y_MIN           200
-#define XPT2046_CAL_Y_MAX           3900
+/* Default calibration values (ADC range: 200..3850) */
+#define XPT2046_CAL_X_MIN           300
+#define XPT2046_CAL_X_MAX           3800
+#define XPT2046_CAL_Y_MIN           300
+#define XPT2046_CAL_Y_MAX           3800
 
 /**
  * @brief Touch event data structure

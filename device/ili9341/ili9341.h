@@ -90,6 +90,60 @@ void ili9341_fill_rect(uint16_t x, uint16_t y, uint16_t width, uint16_t height, 
  */
 void ili9341_fill_screen(uint16_t color);
 
+/**
+ * @brief  Defines active drawing window (CASET/PASET) and issues RAMWR command.
+ * @param  x0: Left column.
+ * @param  y0: Top row.
+ * @param  x1: Right column.
+ * @param  y1: Bottom row.
+ */
+void ili9341_set_address_window(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1);
+
+/**
+ * @brief  Draws a fast horizontal line.
+ * @param  x: Start X coordinate.
+ * @param  y: Y coordinate.
+ * @param  width: Line length in pixels.
+ * @param  color: 16-bit RGB565 color.
+ */
+void ili9341_draw_fast_h_line(uint16_t x, uint16_t y, uint16_t width, uint16_t color);
+
+/**
+ * @brief  Draws a fast vertical line.
+ * @param  x: X coordinate.
+ * @param  y: Start Y coordinate.
+ * @param  height: Line height in pixels.
+ * @param  color: 16-bit RGB565 color.
+ */
+void ili9341_draw_fast_v_line(uint16_t x, uint16_t y, uint16_t height, uint16_t color);
+
+/**
+ * @brief  Draws a hollow rectangular outline.
+ * @param  x: Origin X coordinate.
+ * @param  y: Origin Y coordinate.
+ * @param  width: Rectangle width in pixels.
+ * @param  height: Rectangle height in pixels.
+ * @param  color: 16-bit RGB565 color.
+ */
+void ili9341_draw_rect(uint16_t x, uint16_t y, uint16_t width, uint16_t height, uint16_t color);
+
+/**
+ * @brief  Transmits an RGB565 byte buffer directly into a defined rectangular window.
+ * @param  x: Origin X coordinate.
+ * @param  y: Origin Y coordinate.
+ * @param  width: Window width.
+ * @param  height: Window height.
+ * @param  p_bytes: Pointer to RGB565 big-endian byte stream.
+ * @param  byte_count: Total bytes (width * height * 2).
+ */
+void ili9341_draw_buffer(uint16_t x, uint16_t y, uint16_t width, uint16_t height, const uint8_t *p_bytes, uint16_t byte_count);
+
+/**
+ * @brief  Inverts screen display colors (normal vs inverted).
+ * @param  invert: true to invert, false for normal.
+ */
+void ili9341_invert_colors(bool invert);
+
 #ifdef __cplusplus
 }
 #endif

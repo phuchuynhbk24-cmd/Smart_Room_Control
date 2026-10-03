@@ -12,9 +12,9 @@ extern SPI_HandleTypeDef hspi2;
 #define XPT2046_SAMPLE_COUNT        7
 
 /* Orientation configuration for 240x320 portrait mode */
-#define XPT2046_SWAP_XY             0   /**< 0: Direct axis mapping (X=short edge 240, Y=long edge 320) */
+#define XPT2046_SWAP_XY             1   /**< 1: Swap X and Y axes if panel is rotated */
 #define XPT2046_INVERT_X            1   /**< 1: Invert X coordinate direction */
-#define XPT2046_INVERT_Y            1   /**< 1: Invert Y coordinate direction */
+#define XPT2046_INVERT_Y            0   /**< 1: Invert Y coordinate direction */
 
 /* Private Helpers */
 static inline void xpt2046_select(void)
@@ -75,35 +75,34 @@ bool xpt2046_is_touched(void)
 
 bool xpt2046_read_raw(uint16_t *p_raw_x, uint16_t *p_raw_y)
 {
-    /* 1. Fast hardware check: PENIRQ must be active (LOW) */
     if (!xpt2046_is_touched())
     {
         return false;
     }
 
-    /* 2. Dummy read to discard stale charge and settle S/H capacitance */
-    xpt2046_read_adc_channel(XPT2046_CMD_READ_X);
-    xpt2046_read_adc_channel(XPT2046_CMD_READ_Y);
-
     uint16_t samples_x[XPT2046_SAMPLE_COUNT];
     uint16_t samples_y[XPT2046_SAMPLE_COUNT];
 
-    /* 3. Sample coordinate readings without aborting on temporary IRQ glitches */
+    /* Sample coordinate readings */
     for (uint8_t i = 0; i < XPT2046_SAMPLE_COUNT; i++)
     {
+        if (!xpt2046_is_touched())
+        {
+            return false; /* Touch released during measurement */
+        }
         samples_x[i] = xpt2046_read_adc_channel(XPT2046_CMD_READ_X);
         samples_y[i] = xpt2046_read_adc_channel(XPT2046_CMD_READ_Y);
     }
 
-    /* 4. Median filter: sort arrays and pick center value to reject transient spikes */
+    /* Median filter: sort arrays and pick center value to reject transient spikes */
     sort_array(samples_x, XPT2046_SAMPLE_COUNT);
     sort_array(samples_y, XPT2046_SAMPLE_COUNT);
 
     uint16_t med_x = samples_x[XPT2046_SAMPLE_COUNT / 2];
     uint16_t med_y = samples_y[XPT2046_SAMPLE_COUNT / 2];
 
-    /* 5. Expanded sanity bounds check (accepts touches close to edge frames) */
-    if (med_x < 50 || med_x > 4050 || med_y < 50 || med_y > 4050)
+    /* Sanity bounds check (eliminate noise from floating ADC) */
+    if (med_x < 150 || med_x > 3950 || med_y < 150 || med_y > 3950)
     {
         return false;
     }

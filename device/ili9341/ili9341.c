@@ -82,28 +82,33 @@ static void ili9341_hardware_reset(void)
 /**
  * @brief  Defines active drawing window (CASET/PASET) and issues RAMWR command.
  */
-static void ili9341_set_address_window(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1)
+void ili9341_set_address_window(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1)
 {
-    uint8_t data[4];
+    uint8_t cmd_caset = ILI9341_CMD_CASET;
+    uint8_t data_col[4] = { (uint8_t)(x0 >> 8), (uint8_t)(x0 & 0xFF), (uint8_t)(x1 >> 8), (uint8_t)(x1 & 0xFF) };
+    uint8_t cmd_paset = ILI9341_CMD_PASET;
+    uint8_t data_row[4] = { (uint8_t)(y0 >> 8), (uint8_t)(y0 & 0xFF), (uint8_t)(y1 >> 8), (uint8_t)(y1 & 0xFF) };
+    uint8_t cmd_ramwr = ILI9341_CMD_RAMWR;
+
+    ili9341_select();
 
     /* Column address set (CASET) */
-    ili9341_write_command(ILI9341_CMD_CASET);
-    data[0] = (uint8_t)(x0 >> 8);
-    data[1] = (uint8_t)(x0 & 0xFF);
-    data[2] = (uint8_t)(x1 >> 8);
-    data[3] = (uint8_t)(x1 & 0xFF);
-    ili9341_write_data(data, 4);
+    ili9341_dc_command();
+    HAL_SPI_Transmit(&hspi1, &cmd_caset, 1, HAL_MAX_DELAY);
+    ili9341_dc_data();
+    HAL_SPI_Transmit(&hspi1, data_col, 4, HAL_MAX_DELAY);
 
     /* Page address set (PASET) */
-    ili9341_write_command(ILI9341_CMD_PASET);
-    data[0] = (uint8_t)(y0 >> 8);
-    data[1] = (uint8_t)(y0 & 0xFF);
-    data[2] = (uint8_t)(y1 >> 8);
-    data[3] = (uint8_t)(y1 & 0xFF);
-    ili9341_write_data(data, 4);
+    ili9341_dc_command();
+    HAL_SPI_Transmit(&hspi1, &cmd_paset, 1, HAL_MAX_DELAY);
+    ili9341_dc_data();
+    HAL_SPI_Transmit(&hspi1, data_row, 4, HAL_MAX_DELAY);
 
     /* Memory write (RAMWR) */
-    ili9341_write_command(ILI9341_CMD_RAMWR);
+    ili9341_dc_command();
+    HAL_SPI_Transmit(&hspi1, &cmd_ramwr, 1, HAL_MAX_DELAY);
+
+    ili9341_unselect();
 }
 
 void ili9341_write_command(uint8_t cmd)
@@ -319,4 +324,50 @@ void ili9341_fill_rect(uint16_t x, uint16_t y, uint16_t width, uint16_t height, 
 void ili9341_fill_screen(uint16_t color)
 {
     ili9341_fill_rect(0, 0, ILI9341_WIDTH, ILI9341_HEIGHT, color);
+}
+
+void ili9341_draw_fast_h_line(uint16_t x, uint16_t y, uint16_t width, uint16_t color)
+{
+    ili9341_fill_rect(x, y, width, 1, color);
+}
+
+void ili9341_draw_fast_v_line(uint16_t x, uint16_t y, uint16_t height, uint16_t color)
+{
+    ili9341_fill_rect(x, y, 1, height, color);
+}
+
+void ili9341_draw_rect(uint16_t x, uint16_t y, uint16_t width, uint16_t height, uint16_t color)
+{
+    if (width == 0 || height == 0)
+    {
+        return;
+    }
+    ili9341_draw_fast_h_line(x, y, width, color);
+    ili9341_draw_fast_h_line(x, y + height - 1, width, color);
+    ili9341_draw_fast_v_line(x, y, height, color);
+    ili9341_draw_fast_v_line(x + width - 1, y, height, color);
+}
+
+void ili9341_draw_buffer(uint16_t x, uint16_t y, uint16_t width, uint16_t height, const uint8_t *p_bytes, uint16_t byte_count)
+{
+    if (p_bytes == NULL || byte_count == 0 || width == 0 || height == 0)
+    {
+        return;
+    }
+    if (x >= ILI9341_WIDTH || y >= ILI9341_HEIGHT)
+    {
+        return;
+    }
+
+    ili9341_set_address_window(x, y, x + width - 1, y + height - 1);
+
+    ili9341_dc_data();
+    ili9341_select();
+    HAL_SPI_Transmit(&hspi1, (uint8_t *)p_bytes, byte_count, HAL_MAX_DELAY);
+    ili9341_unselect();
+}
+
+void ili9341_invert_colors(bool invert)
+{
+    ili9341_write_command(invert ? 0x21 : 0x20);
 }

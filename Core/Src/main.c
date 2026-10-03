@@ -55,7 +55,6 @@ TIM_HandleTypeDef htim2;
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
-volatile bool g_touch_event_pending = false;
 volatile bool g_exti_btn_mode_flag  = false;
 volatile bool g_exti_btn_fan_flag   = false;
 volatile bool g_exti_btn_light_flag = false;
@@ -196,41 +195,104 @@ static void format_float_1dec(float val, char *out, size_t max_len)
     snprintf(out, max_len, "%2d.%d", int_part, frac_part);
 }
 
+/* Static pixel stream buffer for accelerated character rasterization (max 12x16 size 2: 192 pixels = 384 bytes) */
+static uint8_t s_char_stream[384];
+
 void UI_DrawChar(uint16_t x, uint16_t y, char c, uint16_t color, uint16_t bg, uint8_t size)
 {
+    if (x >= ILI9341_WIDTH || y >= ILI9341_HEIGHT)
+    {
+        return;
+    }
     if (c < 32 || c > 127)
     {
         c = ' ';
     }
     uint8_t c_idx = (uint8_t)(c - 32);
 
-    for (int8_t i = 0; i < 5; i++)
-    {
-        uint8_t line = s_font5x7[c_idx][i];
-        for (int8_t j = 0; j < 8; j++)
-        {
-            uint16_t pixel_color = (line & (1 << j)) ? color : bg;
-            if (size == 1)
-            {
-                ili9341_draw_pixel(x + i, y + j, pixel_color);
-            }
-            else
-            {
-                ili9341_fill_rect(x + (i * size), y + (j * size), size, size, pixel_color);
-            }
-        }
-    }
+    uint8_t c_hi = (uint8_t)(color >> 8);
+    uint8_t c_lo = (uint8_t)(color & 0xFF);
+    uint8_t b_hi = (uint8_t)(bg >> 8);
+    uint8_t b_lo = (uint8_t)(bg & 0xFF);
 
-    /* Trailing spacing column */
     if (size == 1)
     {
-        for (int8_t j = 0; j < 8; j++)
+        if ((x + 6) > ILI9341_WIDTH || (y + 8) > ILI9341_HEIGHT)
         {
-            ili9341_draw_pixel(x + 5, y + j, bg);
+            return;
         }
+
+        uint16_t idx = 0;
+        for (uint8_t r = 0; r < 8; r++)
+        {
+            uint8_t bit_mask = (uint8_t)(1 << r);
+            for (uint8_t col = 0; col < 5; col++)
+            {
+                if (s_font5x7[c_idx][col] & bit_mask)
+                {
+                    s_char_stream[idx++] = c_hi;
+                    s_char_stream[idx++] = c_lo;
+                }
+                else
+                {
+                    s_char_stream[idx++] = b_hi;
+                    s_char_stream[idx++] = b_lo;
+                }
+            }
+            /* Spacing column */
+            s_char_stream[idx++] = b_hi;
+            s_char_stream[idx++] = b_lo;
+        }
+
+        ili9341_draw_buffer(x, y, 6, 8, s_char_stream, 96);
+    }
+    else if (size == 2)
+    {
+        if ((x + 12) > ILI9341_WIDTH || (y + 16) > ILI9341_HEIGHT)
+        {
+            return;
+        }
+
+        uint16_t idx = 0;
+        for (uint8_t r = 0; r < 16; r++)
+        {
+            uint8_t font_r = (uint8_t)(r >> 1);
+            uint8_t bit_mask = (uint8_t)(1 << font_r);
+            for (uint8_t col = 0; col < 10; col++)
+            {
+                uint8_t font_col = (uint8_t)(col >> 1);
+                if (s_font5x7[c_idx][font_col] & bit_mask)
+                {
+                    s_char_stream[idx++] = c_hi;
+                    s_char_stream[idx++] = c_lo;
+                }
+                else
+                {
+                    s_char_stream[idx++] = b_hi;
+                    s_char_stream[idx++] = b_lo;
+                }
+            }
+            /* Two spacing columns */
+            s_char_stream[idx++] = b_hi;
+            s_char_stream[idx++] = b_lo;
+            s_char_stream[idx++] = b_hi;
+            s_char_stream[idx++] = b_lo;
+        }
+
+        ili9341_draw_buffer(x, y, 12, 16, s_char_stream, 384);
     }
     else
     {
+        /* Fallback for generic scales */
+        for (int8_t i = 0; i < 5; i++)
+        {
+            uint8_t line = s_font5x7[c_idx][i];
+            for (int8_t j = 0; j < 8; j++)
+            {
+                uint16_t pixel_color = (line & (1 << j)) ? color : bg;
+                ili9341_fill_rect(x + (i * size), y + (j * size), size, size, pixel_color);
+            }
+        }
         ili9341_fill_rect(x + (5 * size), y, size, 8 * size, bg);
     }
 }
@@ -246,6 +308,10 @@ void UI_DrawString(uint16_t x, uint16_t y, const char *str, uint16_t color, uint
 
     while (*str)
     {
+        if (cur_x + char_step > ILI9341_WIDTH)
+        {
+            break;
+        }
         UI_DrawChar(cur_x, y, *str, color, bg, size);
         cur_x += char_step;
         str++;
@@ -254,13 +320,8 @@ void UI_DrawString(uint16_t x, uint16_t y, const char *str, uint16_t color, uint
 
 void UI_DrawCard(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t border_color, uint16_t bg_color)
 {
-    /* Background area */
     ili9341_fill_rect(x, y, w, h, bg_color);
-    /* Border lines */
-    ili9341_fill_rect(x, y, w, 1, border_color);             /* Top border */
-    ili9341_fill_rect(x, y + h - 1, w, 1, border_color);     /* Bottom border */
-    ili9341_fill_rect(x, y, 1, h, border_color);             /* Left border */
-    ili9341_fill_rect(x + w - 1, y, 1, h, border_color);     /* Right border */
+    ili9341_draw_rect(x, y, w, h, border_color);
 }
 
 void UI_DrawProgressBar(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint8_t percent, uint16_t fg_color, uint16_t bg_color)
@@ -270,11 +331,8 @@ void UI_DrawProgressBar(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint8_t 
         percent = 100;
     }
 
-    /* Outer border frame */
-    ili9341_fill_rect(x, y, w, 1, UI_COLOR_CARD_BD);
-    ili9341_fill_rect(x, y + h - 1, w, 1, UI_COLOR_CARD_BD);
-    ili9341_fill_rect(x, y, 1, h, UI_COLOR_CARD_BD);
-    ili9341_fill_rect(x + w - 1, y, 1, h, UI_COLOR_CARD_BD);
+    /* Outer border frame using fast rectangle outline */
+    ili9341_draw_rect(x, y, w, h, UI_COLOR_CARD_BD);
 
     uint16_t inner_w = (w > 2) ? (w - 2) : 0;
     uint16_t inner_h = (h > 2) ? (h - 2) : 0;
@@ -524,68 +582,59 @@ int main(void)
     /* USER CODE BEGIN 3 */
     uint16_t touch_x = 0;
     uint16_t touch_y = 0;
-    uint16_t raw_x = 0;
-    uint16_t raw_y = 0;
     bool need_ui_refresh = false;
 
-    /* 1. Touch Screen Processing (Triggered by EXTI IRQ or Active Screen Contact) */
-    if (g_touch_event_pending || xpt2046_is_touched())
+    /* 1. Touch Screen Processing (Sampled safely) */
+    if (xpt2046_is_touched())
     {
-      g_touch_event_pending = false;
-
-      if (xpt2046_get_xy_and_raw(&touch_x, &touch_y, &raw_x, &raw_y))
+      if (xpt2046_get_xy(&touch_x, &touch_y))
       {
         if (!touch_was_pressed && (HAL_GetTick() - last_touch_tick > 200))
         {
           touch_was_pressed = true;
           last_touch_tick = HAL_GetTick();
 
-          /* Zone 1: Header Mode Button (Top-Right: y <= 40, x >= 130) */
-          if (touch_y <= 40 && touch_x >= 130)
+          /* Hitbox 1: Header Mode Button (x: 160..235, y: 0..30) */
+          if (touch_x >= 160 && touch_x <= 235 && touch_y <= 30)
           {
             sim_mode = !sim_mode;
             need_ui_refresh = true;
           }
-          /* Zone 2: Motion Alert Card (y: 145..190) */
-          else if (touch_y >= 145 && touch_y <= 190)
+          /* Hitbox 2: Fan Relay Tile (x: 10..115, y: 205..240) */
+          else if (touch_x >= 10 && touch_x <= 115 && touch_y >= 205 && touch_y <= 240)
+          {
+            sim_fan = !sim_fan;
+            need_ui_refresh = true;
+          }
+          /* Hitbox 3: Light 1 Relay Tile (x: 120..230, y: 205..240) */
+          else if (touch_x >= 120 && touch_x <= 230 && touch_y >= 205 && touch_y <= 240)
+          {
+            sim_light1 = !sim_light1;
+            need_ui_refresh = true;
+          }
+          /* Hitbox 4: Dehumidifier Relay Tile (x: 10..115, y: 240..275) */
+          else if (touch_x >= 10 && touch_x <= 115 && touch_y >= 240 && touch_y <= 275)
+          {
+            sim_dehum = !sim_dehum;
+            need_ui_refresh = true;
+          }
+          /* Hitbox 5: Light 2 Relay Tile (x: 120..230, y: 240..275) */
+          else if (touch_x >= 120 && touch_x <= 230 && touch_y >= 240 && touch_y <= 275)
+          {
+            sim_light2 = !sim_light2;
+            need_ui_refresh = true;
+          }
+          /* Hitbox 6: Motion Badge Toggle (x: 10..230, y: 150..185) */
+          else if (touch_x >= 10 && touch_x <= 230 && touch_y >= 150 && touch_y <= 185)
           {
             sim_pir = !sim_pir;
             need_ui_refresh = true;
           }
-          /* Zone 3: Relay Control Matrix (y: 194..290) - Partitioned 2x2 Grid */
-          else if (touch_y >= 194 && touch_y <= 290)
-          {
-            if (touch_x <= 118)
-            {
-              /* Left Column: Upper = FAN, Lower = DEHUM */
-              if (touch_y < 242)
-              {
-                sim_fan = !sim_fan;
-              }
-              else
-              {
-                sim_dehum = !sim_dehum;
-              }
-            }
-            else
-            {
-              /* Right Column: Upper = LIGHT 1, Lower = LIGHT 2 */
-              if (touch_y < 242)
-              {
-                sim_light1 = !sim_light1;
-              }
-              else
-              {
-                sim_light2 = !sim_light2;
-              }
-            }
-            need_ui_refresh = true;
-          }
 
           /* Display live coordinate diagnostic on Footer Bar */
-          char footer_dbg[32];
-          snprintf(footer_dbg, sizeof(footer_dbg), "T:%3d,%3d R:%4d,%4d", touch_x, touch_y, raw_x, raw_y);
-          UI_DrawString(8, 301, footer_dbg, UI_COLOR_LIGHT, 0x0842, 1);
+          char footer_dbg[24];
+          snprintf(footer_dbg, sizeof(footer_dbg), "TOUCH: (%3d,%3d)", touch_x, touch_y);
+          UI_DrawString(12, 301, footer_dbg, UI_COLOR_LIGHT, 0x0842, 1);
         }
       }
     }
@@ -1029,12 +1078,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
   uint32_t now = HAL_GetTick();
 
-  if (GPIO_Pin == TOUCH_IRQ_Pin)
-  {
-    /* Signal main loop to process touch */
-    g_touch_event_pending = true;
-  }
-  else if (GPIO_Pin == BTN_MODE_Pin)
+  if (GPIO_Pin == BTN_MODE_Pin)
   {
     static uint32_t s_last_mode_tick = 0;
     if (now - s_last_mode_tick > 200)
