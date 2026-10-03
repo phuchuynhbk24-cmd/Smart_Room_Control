@@ -453,6 +453,15 @@ void UI_Draw_Dashboard(float temp, float humi, uint8_t light_percent, uint8_t pi
     }
 
     /* 6. Relay Actuators (4 Channels) */
+    if (auto_mode)
+    {
+        UI_DrawString(14, 200, "RELAY ACTUATORS [LOCKED] ", UI_COLOR_TEXT_MUTED, UI_COLOR_CARD_BG, 1);
+    }
+    else
+    {
+        UI_DrawString(14, 200, "RELAY ACTUATORS [MANUAL] ", UI_COLOR_TEXT_MAIN, UI_COLOR_CARD_BG, 1);
+    }
+
     /* Fan (PB5) */
     if (relay_fan)
     {
@@ -568,7 +577,9 @@ int main(void)
   uint8_t sim_mode = 1;
   uint32_t last_telemetry_tick = 0;
   uint32_t last_touch_tick = 0;
+  uint32_t last_lockout_tick = 0;
   bool touch_was_pressed = false;
+  bool lockout_banner_visible = false;
 
   /* Initial dashboard render */
   UI_Draw_Dashboard(sim_temp, sim_humi, sim_light, sim_pir,
@@ -609,37 +620,49 @@ int main(void)
           /* Hitbox 3: Relay Control Matrix (y: 190..295) - Partitioned 2x2 Grid */
           else if (touch_y >= 190 && touch_y <= 295)
           {
-            if (touch_x < 120)
+            if (sim_mode == 1)
             {
-              /* Left Column: Upper = FAN, Lower = DEHUM */
-              if (touch_y < 240)
-              {
-                sim_fan = !sim_fan;
-              }
-              else
-              {
-                sim_dehum = !sim_dehum;
-              }
+              /* AUTO MODE: Relays are locked to automated sensors. Show alert banner */
+              lockout_banner_visible = true;
+              last_lockout_tick = HAL_GetTick();
+              ili9341_fill_rect(0, 293, ILI9341_WIDTH, 27, 0x0842);
+              UI_DrawString(8, 301, "[AUTO] CHUYEN MANU DE CHINH!", ILI9341_ORANGE, 0x0842, 1);
             }
             else
             {
-              /* Right Column: Upper = LIGHT 1, Lower = LIGHT 2 */
-              if (touch_y < 240)
+              /* MANUAL MODE: Relay actuation enabled */
+              if (touch_x < 120)
               {
-                sim_light1 = !sim_light1;
+                /* Left Column: Upper = FAN, Lower = DEHUM */
+                if (touch_y < 240)
+                {
+                  sim_fan = !sim_fan;
+                }
+                else
+                {
+                  sim_dehum = !sim_dehum;
+                }
               }
               else
               {
-                sim_light2 = !sim_light2;
+                /* Right Column: Upper = LIGHT 1, Lower = LIGHT 2 */
+                if (touch_y < 240)
+                {
+                  sim_light1 = !sim_light1;
+                }
+                else
+                {
+                  sim_light2 = !sim_light2;
+                }
               }
-            }
-            need_ui_refresh = true;
-          }
+              need_ui_refresh = true;
 
-          /* Display live coordinate diagnostic on Footer Bar */
-          char footer_dbg[24];
-          snprintf(footer_dbg, sizeof(footer_dbg), "TOUCH: (%3d,%3d)", touch_x, touch_y);
-          UI_DrawString(12, 301, footer_dbg, UI_COLOR_LIGHT, 0x0842, 1);
+              /* Display live coordinate diagnostic on Footer Bar */
+              char footer_dbg[24];
+              snprintf(footer_dbg, sizeof(footer_dbg), "TOUCH: (%3d,%3d)", touch_x, touch_y);
+              UI_DrawString(12, 301, footer_dbg, UI_COLOR_LIGHT, 0x0842, 1);
+            }
+          }
         }
       }
     }
@@ -660,23 +683,53 @@ int main(void)
     if (g_exti_btn_fan_flag)
     {
       g_exti_btn_fan_flag = false;
-      sim_fan = !sim_fan;
-      need_ui_refresh = true;
+      if (sim_mode == 1)
+      {
+        lockout_banner_visible = true;
+        last_lockout_tick = HAL_GetTick();
+        ili9341_fill_rect(0, 293, ILI9341_WIDTH, 27, 0x0842);
+        UI_DrawString(8, 301, "[AUTO] CHUYEN MANU DE CHINH!", ILI9341_ORANGE, 0x0842, 1);
+      }
+      else
+      {
+        sim_fan = !sim_fan;
+        need_ui_refresh = true;
+      }
     }
     if (g_exti_btn_light_flag)
     {
       g_exti_btn_light_flag = false;
-      sim_light1 = !sim_light1;
-      need_ui_refresh = true;
+      if (sim_mode == 1)
+      {
+        lockout_banner_visible = true;
+        last_lockout_tick = HAL_GetTick();
+        ili9341_fill_rect(0, 293, ILI9341_WIDTH, 27, 0x0842);
+        UI_DrawString(8, 301, "[AUTO] CHUYEN MANU DE CHINH!", ILI9341_ORANGE, 0x0842, 1);
+      }
+      else
+      {
+        sim_light1 = !sim_light1;
+        need_ui_refresh = true;
+      }
     }
     if (g_exti_btn_dehum_flag)
     {
       g_exti_btn_dehum_flag = false;
-      sim_dehum = !sim_dehum;
-      need_ui_refresh = true;
+      if (sim_mode == 1)
+      {
+        lockout_banner_visible = true;
+        last_lockout_tick = HAL_GetTick();
+        ili9341_fill_rect(0, 293, ILI9341_WIDTH, 27, 0x0842);
+        UI_DrawString(8, 301, "[AUTO] CHUYEN MANU DE CHINH!", ILI9341_ORANGE, 0x0842, 1);
+      }
+      else
+      {
+        sim_dehum = !sim_dehum;
+        need_ui_refresh = true;
+      }
     }
 
-    /* 3. Periodic Background Sensor Simulation (every 2.5 seconds) */
+    /* 3. Periodic Background Sensor Simulation & Autonomous Logic (every 2.5 seconds) */
     if (HAL_GetTick() - last_telemetry_tick >= 2500)
     {
       last_telemetry_tick = HAL_GetTick();
@@ -688,7 +741,24 @@ int main(void)
       if (sim_humi > 85.0f) sim_humi = 58.0f;
 
       sim_light = (sim_light >= 95) ? 35 : (sim_light + 10);
+
+      /* In AUTO Mode: Environmental thresholds autonomously command actuators */
+      if (sim_mode == 1)
+      {
+        sim_fan = (sim_temp >= 28.5f) ? 1 : 0;
+        sim_dehum = (sim_humi >= 70.0f) ? 1 : 0;
+        sim_light1 = (sim_light < 60 || sim_pir == 1) ? 1 : 0;
+      }
+
       need_ui_refresh = true;
+    }
+
+    /* 4. Auto-clear lockout banner after 2.5 seconds */
+    if (lockout_banner_visible && (HAL_GetTick() - last_lockout_tick >= 2500))
+    {
+      lockout_banner_visible = false;
+      ili9341_fill_rect(0, 293, ILI9341_WIDTH, 27, 0x0842);
+      UI_DrawString(12, 301, "SYS: RUNNING | STM32F103", UI_COLOR_TEXT_MUTED, 0x0842, 1);
     }
 
     /* 4. Instant UI Refresh and Hardware Relay/LED Synchronization */
