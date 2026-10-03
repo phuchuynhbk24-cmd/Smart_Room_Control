@@ -594,40 +594,45 @@ int main(void)
           touch_was_pressed = true;
           last_touch_tick = HAL_GetTick();
 
-          /* Hitbox 1: Header Mode Button (x: 160..235, y: 0..30) */
-          if (touch_x >= 160 && touch_x <= 235 && touch_y <= 30)
+          /* Hitbox 1: Header Mode Button (Top-Right: y <= 40, x >= 130) */
+          if (touch_y <= 40 && touch_x >= 130)
           {
             sim_mode = !sim_mode;
             need_ui_refresh = true;
           }
-          /* Hitbox 2: Fan Relay Tile (x: 10..115, y: 205..240) */
-          else if (touch_x >= 10 && touch_x <= 115 && touch_y >= 205 && touch_y <= 240)
-          {
-            sim_fan = !sim_fan;
-            need_ui_refresh = true;
-          }
-          /* Hitbox 3: Light 1 Relay Tile (x: 120..230, y: 205..240) */
-          else if (touch_x >= 120 && touch_x <= 230 && touch_y >= 205 && touch_y <= 240)
-          {
-            sim_light1 = !sim_light1;
-            need_ui_refresh = true;
-          }
-          /* Hitbox 4: Dehumidifier Relay Tile (x: 10..115, y: 240..275) */
-          else if (touch_x >= 10 && touch_x <= 115 && touch_y >= 240 && touch_y <= 275)
-          {
-            sim_dehum = !sim_dehum;
-            need_ui_refresh = true;
-          }
-          /* Hitbox 5: Light 2 Relay Tile (x: 120..230, y: 240..275) */
-          else if (touch_x >= 120 && touch_x <= 230 && touch_y >= 240 && touch_y <= 275)
-          {
-            sim_light2 = !sim_light2;
-            need_ui_refresh = true;
-          }
-          /* Hitbox 6: Motion Badge Toggle (x: 10..230, y: 150..185) */
-          else if (touch_x >= 10 && touch_x <= 230 && touch_y >= 150 && touch_y <= 185)
+          /* Hitbox 2: Motion Alert Card (y: 140..190) */
+          else if (touch_y >= 140 && touch_y <= 190)
           {
             sim_pir = !sim_pir;
+            need_ui_refresh = true;
+          }
+          /* Hitbox 3: Relay Control Matrix (y: 190..295) - Partitioned 2x2 Grid */
+          else if (touch_y >= 190 && touch_y <= 295)
+          {
+            if (touch_x < 120)
+            {
+              /* Left Column: Upper = FAN, Lower = DEHUM */
+              if (touch_y < 240)
+              {
+                sim_fan = !sim_fan;
+              }
+              else
+              {
+                sim_dehum = !sim_dehum;
+              }
+            }
+            else
+            {
+              /* Right Column: Upper = LIGHT 1, Lower = LIGHT 2 */
+              if (touch_y < 240)
+              {
+                sim_light1 = !sim_light1;
+              }
+              else
+              {
+                sim_light2 = !sim_light2;
+              }
+            }
             need_ui_refresh = true;
           }
 
