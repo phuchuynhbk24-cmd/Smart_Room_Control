@@ -12,9 +12,9 @@ extern SPI_HandleTypeDef hspi2;
 #define XPT2046_SAMPLE_COUNT        7
 
 /* Orientation configuration for 240x320 portrait mode */
-#define XPT2046_SWAP_XY             1   /**< 1: Swap X and Y axes if panel is rotated */
+#define XPT2046_SWAP_XY             0   /**< 0: Direct axis mapping (X=short edge 240, Y=long edge 320) */
 #define XPT2046_INVERT_X            1   /**< 1: Invert X coordinate direction */
-#define XPT2046_INVERT_Y            0   /**< 1: Invert Y coordinate direction */
+#define XPT2046_INVERT_Y            1   /**< 1: Invert Y coordinate direction */
 
 /* Private Helpers */
 static inline void xpt2046_select(void)

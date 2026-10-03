@@ -55,7 +55,11 @@ TIM_HandleTypeDef htim2;
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
-
+volatile bool g_touch_event_pending = false;
+volatile bool g_exti_btn_mode_flag  = false;
+volatile bool g_exti_btn_fan_flag   = false;
+volatile bool g_exti_btn_light_flag = false;
+volatile bool g_exti_btn_dehum_flag = false;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -524,102 +528,98 @@ int main(void)
     uint16_t raw_y = 0;
     bool need_ui_refresh = false;
 
-    /* 1. Touch Screen Scanning & Interactive Hitbox Processing */
-    if (xpt2046_get_xy_and_raw(&touch_x, &touch_y, &raw_x, &raw_y))
+    /* 1. Touch Screen Processing (Triggered by EXTI IRQ or Active Screen Contact) */
+    if (g_touch_event_pending || xpt2046_is_touched())
     {
-      if (!touch_was_pressed && (HAL_GetTick() - last_touch_tick > 200))
+      g_touch_event_pending = false;
+
+      if (xpt2046_get_xy_and_raw(&touch_x, &touch_y, &raw_x, &raw_y))
       {
-        touch_was_pressed = true;
-        last_touch_tick = HAL_GetTick();
+        if (!touch_was_pressed && (HAL_GetTick() - last_touch_tick > 200))
+        {
+          touch_was_pressed = true;
+          last_touch_tick = HAL_GetTick();
 
-        /* Hitbox 1: Header Mode Button (x: 130..240, y: 0..40) */
-        if (touch_x >= 130 && touch_x <= 240 && touch_y <= 40)
-        {
-          sim_mode = !sim_mode;
-          need_ui_refresh = true;
-        }
-        /* Hitbox 2: Fan Relay Tile (x: 6..118, y: 195..242) */
-        else if (touch_x >= 6 && touch_x <= 118 && touch_y >= 195 && touch_y <= 242)
-        {
-          sim_fan = !sim_fan;
-          need_ui_refresh = true;
-        }
-        /* Hitbox 3: Light 1 Relay Tile (x: 120..236, y: 195..242) */
-        else if (touch_x >= 120 && touch_x <= 236 && touch_y >= 195 && touch_y <= 242)
-        {
-          sim_light1 = !sim_light1;
-          need_ui_refresh = true;
-        }
-        /* Hitbox 4: Dehumidifier Relay Tile (x: 6..118, y: 244..290) */
-        else if (touch_x >= 6 && touch_x <= 118 && touch_y >= 244 && touch_y <= 290)
-        {
-          sim_dehum = !sim_dehum;
-          need_ui_refresh = true;
-        }
-        /* Hitbox 5: Light 2 Relay Tile (x: 120..236, y: 244..290) */
-        else if (touch_x >= 120 && touch_x <= 236 && touch_y >= 244 && touch_y <= 290)
-        {
-          sim_light2 = !sim_light2;
-          need_ui_refresh = true;
-        }
-        /* Hitbox 6: Motion Badge Toggle (x: 6..234, y: 145..190) */
-        else if (touch_x >= 6 && touch_x <= 234 && touch_y >= 145 && touch_y <= 190)
-        {
-          sim_pir = !sim_pir;
-          need_ui_refresh = true;
-        }
+          /* Zone 1: Header Mode Button (Top-Right: y <= 40, x >= 130) */
+          if (touch_y <= 40 && touch_x >= 130)
+          {
+            sim_mode = !sim_mode;
+            need_ui_refresh = true;
+          }
+          /* Zone 2: Motion Alert Card (y: 145..190) */
+          else if (touch_y >= 145 && touch_y <= 190)
+          {
+            sim_pir = !sim_pir;
+            need_ui_refresh = true;
+          }
+          /* Zone 3: Relay Control Matrix (y: 194..290) - Partitioned 2x2 Grid */
+          else if (touch_y >= 194 && touch_y <= 290)
+          {
+            if (touch_x <= 118)
+            {
+              /* Left Column: Upper = FAN, Lower = DEHUM */
+              if (touch_y < 242)
+              {
+                sim_fan = !sim_fan;
+              }
+              else
+              {
+                sim_dehum = !sim_dehum;
+              }
+            }
+            else
+            {
+              /* Right Column: Upper = LIGHT 1, Lower = LIGHT 2 */
+              if (touch_y < 242)
+              {
+                sim_light1 = !sim_light1;
+              }
+              else
+              {
+                sim_light2 = !sim_light2;
+              }
+            }
+            need_ui_refresh = true;
+          }
 
-        /* Display touch coordinates feedback on Footer Bar: T:(pixel), R:(raw ADC) */
-        char footer_dbg[32];
-        snprintf(footer_dbg, sizeof(footer_dbg), "T:%3d,%3d R:%4d,%4d", touch_x, touch_y, raw_x, raw_y);
-        UI_DrawString(8, 301, footer_dbg, UI_COLOR_LIGHT, 0x0842, 1);
+          /* Display live coordinate diagnostic on Footer Bar */
+          char footer_dbg[32];
+          snprintf(footer_dbg, sizeof(footer_dbg), "T:%3d,%3d R:%4d,%4d", touch_x, touch_y, raw_x, raw_y);
+          UI_DrawString(8, 301, footer_dbg, UI_COLOR_LIGHT, 0x0842, 1);
+        }
       }
     }
-    else
+
+    /* Release latch when finger lifts up */
+    if (!xpt2046_is_touched())
     {
       touch_was_pressed = false;
     }
 
-    /* 2. Check Physical Hardware Push Buttons (Active-Low) */
-    if (HAL_GPIO_ReadPin(BTN_MODE_GPIO_Port, BTN_MODE_Pin) == GPIO_PIN_RESET)
+    /* 2. Process Physical Hardware Push Button Events (From Non-blocking EXTI Callbacks) */
+    if (g_exti_btn_mode_flag)
     {
-      HAL_Delay(50);
-      if (HAL_GPIO_ReadPin(BTN_MODE_GPIO_Port, BTN_MODE_Pin) == GPIO_PIN_RESET)
-      {
-        sim_mode = !sim_mode;
-        need_ui_refresh = true;
-        while (HAL_GPIO_ReadPin(BTN_MODE_GPIO_Port, BTN_MODE_Pin) == GPIO_PIN_RESET);
-      }
+      g_exti_btn_mode_flag = false;
+      sim_mode = !sim_mode;
+      need_ui_refresh = true;
     }
-    if (HAL_GPIO_ReadPin(BTN_FAN_GPIO_Port, BTN_FAN_Pin) == GPIO_PIN_RESET)
+    if (g_exti_btn_fan_flag)
     {
-      HAL_Delay(50);
-      if (HAL_GPIO_ReadPin(BTN_FAN_GPIO_Port, BTN_FAN_Pin) == GPIO_PIN_RESET)
-      {
-        sim_fan = !sim_fan;
-        need_ui_refresh = true;
-        while (HAL_GPIO_ReadPin(BTN_FAN_GPIO_Port, BTN_FAN_Pin) == GPIO_PIN_RESET);
-      }
+      g_exti_btn_fan_flag = false;
+      sim_fan = !sim_fan;
+      need_ui_refresh = true;
     }
-    if (HAL_GPIO_ReadPin(BTN_LIGHT_GPIO_Port, BTN_LIGHT_Pin) == GPIO_PIN_RESET)
+    if (g_exti_btn_light_flag)
     {
-      HAL_Delay(50);
-      if (HAL_GPIO_ReadPin(BTN_LIGHT_GPIO_Port, BTN_LIGHT_Pin) == GPIO_PIN_RESET)
-      {
-        sim_light1 = !sim_light1;
-        need_ui_refresh = true;
-        while (HAL_GPIO_ReadPin(BTN_LIGHT_GPIO_Port, BTN_LIGHT_Pin) == GPIO_PIN_RESET);
-      }
+      g_exti_btn_light_flag = false;
+      sim_light1 = !sim_light1;
+      need_ui_refresh = true;
     }
-    if (HAL_GPIO_ReadPin(BTN_DEHUM_GPIO_Port, BTN_DEHUM_Pin) == GPIO_PIN_RESET)
+    if (g_exti_btn_dehum_flag)
     {
-      HAL_Delay(50);
-      if (HAL_GPIO_ReadPin(BTN_DEHUM_GPIO_Port, BTN_DEHUM_Pin) == GPIO_PIN_RESET)
-      {
-        sim_dehum = !sim_dehum;
-        need_ui_refresh = true;
-        while (HAL_GPIO_ReadPin(BTN_DEHUM_GPIO_Port, BTN_DEHUM_Pin) == GPIO_PIN_RESET);
-      }
+      g_exti_btn_dehum_flag = false;
+      sim_dehum = !sim_dehum;
+      need_ui_refresh = true;
     }
 
     /* 3. Periodic Background Sensor Simulation (every 2.5 seconds) */
@@ -637,9 +637,23 @@ int main(void)
       need_ui_refresh = true;
     }
 
-    /* 4. Instant UI Refresh on any user touch or telemetry change */
+    /* 4. Instant UI Refresh and Hardware Relay/LED Synchronization */
     if (need_ui_refresh)
     {
+      /* Drive Physical Relay GPIOs and Feedback LEDs */
+      HAL_GPIO_WritePin(RELAY_FAN_GPIO_Port, RELAY_FAN_Pin, sim_fan ? GPIO_PIN_SET : GPIO_PIN_RESET);
+      HAL_GPIO_WritePin(LED_CH1_GPIO_Port, LED_CH1_Pin, sim_fan ? GPIO_PIN_SET : GPIO_PIN_RESET);
+
+      HAL_GPIO_WritePin(RELAY_LIGHT1_GPIO_Port, RELAY_LIGHT1_Pin, sim_light1 ? GPIO_PIN_SET : GPIO_PIN_RESET);
+      HAL_GPIO_WritePin(LED_CH2_GPIO_Port, LED_CH2_Pin, sim_light1 ? GPIO_PIN_SET : GPIO_PIN_RESET);
+
+      HAL_GPIO_WritePin(RELAY_LIGHT2_GPIO_Port, RELAY_LIGHT2_Pin, sim_light2 ? GPIO_PIN_SET : GPIO_PIN_RESET);
+      HAL_GPIO_WritePin(LED_CH3_GPIO_Port, LED_CH3_Pin, sim_light2 ? GPIO_PIN_SET : GPIO_PIN_RESET);
+
+      HAL_GPIO_WritePin(RELAY_DEHUM_GPIO_Port, RELAY_DEHUM_Pin, sim_dehum ? GPIO_PIN_SET : GPIO_PIN_RESET);
+      HAL_GPIO_WritePin(LED_CH4_GPIO_Port, LED_CH4_Pin, sim_dehum ? GPIO_PIN_SET : GPIO_PIN_RESET);
+
+      /* Update HMI Screen */
       UI_Draw_Dashboard(sim_temp, sim_humi, sim_light, sim_pir,
                         sim_fan, sim_light1, sim_light2, sim_dehum,
                         sim_mode);
@@ -908,7 +922,9 @@ static void MX_GPIO_Init(void)
 {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
   /* USER CODE BEGIN MX_GPIO_Init_1 */
-
+  /* Enable AFIO clock and disable JTAG (keep SWD) to free PA15, PB3, PB4 for Buttons */
+  __HAL_RCC_AFIO_CLK_ENABLE();
+  __HAL_AFIO_REMAP_SWJ_NOJTAG();
   /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
@@ -1009,7 +1025,52 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+  uint32_t now = HAL_GetTick();
 
+  if (GPIO_Pin == TOUCH_IRQ_Pin)
+  {
+    /* Signal main loop to process touch */
+    g_touch_event_pending = true;
+  }
+  else if (GPIO_Pin == BTN_MODE_Pin)
+  {
+    static uint32_t s_last_mode_tick = 0;
+    if (now - s_last_mode_tick > 200)
+    {
+      s_last_mode_tick = now;
+      g_exti_btn_mode_flag = true;
+    }
+  }
+  else if (GPIO_Pin == BTN_FAN_Pin)
+  {
+    static uint32_t s_last_fan_tick = 0;
+    if (now - s_last_fan_tick > 200)
+    {
+      s_last_fan_tick = now;
+      g_exti_btn_fan_flag = true;
+    }
+  }
+  else if (GPIO_Pin == BTN_LIGHT_Pin)
+  {
+    static uint32_t s_last_light_tick = 0;
+    if (now - s_last_light_tick > 200)
+    {
+      s_last_light_tick = now;
+      g_exti_btn_light_flag = true;
+    }
+  }
+  else if (GPIO_Pin == BTN_DEHUM_Pin)
+  {
+    static uint32_t s_last_dehum_tick = 0;
+    if (now - s_last_dehum_tick > 200)
+    {
+      s_last_dehum_tick = now;
+      g_exti_btn_dehum_flag = true;
+    }
+  }
+}
 /* USER CODE END 4 */
 
 /**
