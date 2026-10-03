@@ -520,57 +520,59 @@ int main(void)
     /* USER CODE BEGIN 3 */
     uint16_t touch_x = 0;
     uint16_t touch_y = 0;
+    uint16_t raw_x = 0;
+    uint16_t raw_y = 0;
     bool need_ui_refresh = false;
 
     /* 1. Touch Screen Scanning & Interactive Hitbox Processing */
-    if (xpt2046_get_xy(&touch_x, &touch_y))
+    if (xpt2046_get_xy_and_raw(&touch_x, &touch_y, &raw_x, &raw_y))
     {
-      if (!touch_was_pressed && (HAL_GetTick() - last_touch_tick > 250))
+      if (!touch_was_pressed && (HAL_GetTick() - last_touch_tick > 200))
       {
         touch_was_pressed = true;
         last_touch_tick = HAL_GetTick();
 
-        /* Hitbox 1: Header Mode Button (x: 150..238, y: 0..32) */
-        if (touch_x >= 150 && touch_x <= 238 && touch_y <= 32)
+        /* Hitbox 1: Header Mode Button (x: 130..240, y: 0..40) */
+        if (touch_x >= 130 && touch_x <= 240 && touch_y <= 40)
         {
           sim_mode = !sim_mode;
           need_ui_refresh = true;
         }
-        /* Hitbox 2: Fan Relay Tile (x: 10..115, y: 205..238) */
-        else if (touch_x >= 10 && touch_x <= 115 && touch_y >= 205 && touch_y <= 238)
+        /* Hitbox 2: Fan Relay Tile (x: 6..118, y: 195..242) */
+        else if (touch_x >= 6 && touch_x <= 118 && touch_y >= 195 && touch_y <= 242)
         {
           sim_fan = !sim_fan;
           need_ui_refresh = true;
         }
-        /* Hitbox 3: Light 1 Relay Tile (x: 120..230, y: 205..238) */
-        else if (touch_x >= 120 && touch_x <= 230 && touch_y >= 205 && touch_y <= 238)
+        /* Hitbox 3: Light 1 Relay Tile (x: 120..236, y: 195..242) */
+        else if (touch_x >= 120 && touch_x <= 236 && touch_y >= 195 && touch_y <= 242)
         {
           sim_light1 = !sim_light1;
           need_ui_refresh = true;
         }
-        /* Hitbox 4: Dehumidifier Relay Tile (x: 10..115, y: 240..275) */
-        else if (touch_x >= 10 && touch_x <= 115 && touch_y >= 240 && touch_y <= 275)
+        /* Hitbox 4: Dehumidifier Relay Tile (x: 6..118, y: 244..290) */
+        else if (touch_x >= 6 && touch_x <= 118 && touch_y >= 244 && touch_y <= 290)
         {
           sim_dehum = !sim_dehum;
           need_ui_refresh = true;
         }
-        /* Hitbox 5: Light 2 Relay Tile (x: 120..230, y: 240..275) */
-        else if (touch_x >= 120 && touch_x <= 230 && touch_y >= 240 && touch_y <= 275)
+        /* Hitbox 5: Light 2 Relay Tile (x: 120..236, y: 244..290) */
+        else if (touch_x >= 120 && touch_x <= 236 && touch_y >= 244 && touch_y <= 290)
         {
           sim_light2 = !sim_light2;
           need_ui_refresh = true;
         }
-        /* Hitbox 6: Motion Badge Toggle (x: 10..230, y: 150..185) */
-        else if (touch_x >= 10 && touch_x <= 230 && touch_y >= 150 && touch_y <= 185)
+        /* Hitbox 6: Motion Badge Toggle (x: 6..234, y: 145..190) */
+        else if (touch_x >= 6 && touch_x <= 234 && touch_y >= 145 && touch_y <= 190)
         {
           sim_pir = !sim_pir;
           need_ui_refresh = true;
         }
 
-        /* Display touch coordinates feedback on Footer Bar */
-        char footer_dbg[24];
-        snprintf(footer_dbg, sizeof(footer_dbg), "TOUCH: (%3d,%3d)", touch_x, touch_y);
-        UI_DrawString(12, 301, footer_dbg, UI_COLOR_LIGHT, 0x0842, 1);
+        /* Display touch coordinates feedback on Footer Bar: T:(pixel), R:(raw ADC) */
+        char footer_dbg[32];
+        snprintf(footer_dbg, sizeof(footer_dbg), "T:%3d,%3d R:%4d,%4d", touch_x, touch_y, raw_x, raw_y);
+        UI_DrawString(8, 301, footer_dbg, UI_COLOR_LIGHT, 0x0842, 1);
       }
     }
     else

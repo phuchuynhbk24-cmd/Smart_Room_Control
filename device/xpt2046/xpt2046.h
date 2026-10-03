@@ -29,11 +29,11 @@ extern "C" {
 #define LCD_PIXEL_WIDTH             240
 #define LCD_PIXEL_HEIGHT            320
 
-/* Default calibration values (ADC range: 200..3850) */
-#define XPT2046_CAL_X_MIN           300
-#define XPT2046_CAL_X_MAX           3800
-#define XPT2046_CAL_Y_MIN           300
-#define XPT2046_CAL_Y_MAX           3800
+/* Expanded calibration values (ADC range: 180..3900) */
+#define XPT2046_CAL_X_MIN           180
+#define XPT2046_CAL_X_MAX           3900
+#define XPT2046_CAL_Y_MIN           200
+#define XPT2046_CAL_Y_MAX           3900
 
 /**
  * @brief Touch event data structure
@@ -74,6 +74,11 @@ bool xpt2046_read_raw(uint16_t *p_raw_x, uint16_t *p_raw_y);
  * @retval true if valid touch point detected, false otherwise.
  */
 bool xpt2046_get_xy(uint16_t *p_x, uint16_t *p_y);
+
+/**
+ * @brief  Reads both mapped pixel and raw ADC values (useful for diagnostics & calibration).
+ */
+bool xpt2046_get_xy_and_raw(uint16_t *p_x, uint16_t *p_y, uint16_t *p_raw_x, uint16_t *p_raw_y);
 
 /**
  * @brief  Performs full touch scan and updates state structure.

@@ -75,34 +75,35 @@ bool xpt2046_is_touched(void)
 
 bool xpt2046_read_raw(uint16_t *p_raw_x, uint16_t *p_raw_y)
 {
+    /* 1. Fast hardware check: PENIRQ must be active (LOW) */
     if (!xpt2046_is_touched())
     {
         return false;
     }
 
+    /* 2. Dummy read to discard stale charge and settle S/H capacitance */
+    xpt2046_read_adc_channel(XPT2046_CMD_READ_X);
+    xpt2046_read_adc_channel(XPT2046_CMD_READ_Y);
+
     uint16_t samples_x[XPT2046_SAMPLE_COUNT];
     uint16_t samples_y[XPT2046_SAMPLE_COUNT];
 
-    /* Sample coordinate readings */
+    /* 3. Sample coordinate readings without aborting on temporary IRQ glitches */
     for (uint8_t i = 0; i < XPT2046_SAMPLE_COUNT; i++)
     {
-        if (!xpt2046_is_touched())
-        {
-            return false; /* Touch released during measurement */
-        }
         samples_x[i] = xpt2046_read_adc_channel(XPT2046_CMD_READ_X);
         samples_y[i] = xpt2046_read_adc_channel(XPT2046_CMD_READ_Y);
     }
 
-    /* Median filter: sort arrays and pick center value to reject transient spikes */
+    /* 4. Median filter: sort arrays and pick center value to reject transient spikes */
     sort_array(samples_x, XPT2046_SAMPLE_COUNT);
     sort_array(samples_y, XPT2046_SAMPLE_COUNT);
 
     uint16_t med_x = samples_x[XPT2046_SAMPLE_COUNT / 2];
     uint16_t med_y = samples_y[XPT2046_SAMPLE_COUNT / 2];
 
-    /* Sanity bounds check (eliminate noise from floating ADC) */
-    if (med_x < 150 || med_x > 3950 || med_y < 150 || med_y > 3950)
+    /* 5. Expanded sanity bounds check (accepts touches close to edge frames) */
+    if (med_x < 50 || med_x > 4050 || med_y < 50 || med_y > 4050)
     {
         return false;
     }
@@ -121,6 +122,11 @@ bool xpt2046_read_raw(uint16_t *p_raw_x, uint16_t *p_raw_y)
 
 bool xpt2046_get_xy(uint16_t *p_x, uint16_t *p_y)
 {
+    return xpt2046_get_xy_and_raw(p_x, p_y, NULL, NULL);
+}
+
+bool xpt2046_get_xy_and_raw(uint16_t *p_x, uint16_t *p_y, uint16_t *p_raw_x, uint16_t *p_raw_y)
+{
     uint16_t raw_x = 0;
     uint16_t raw_y = 0;
 
@@ -128,6 +134,9 @@ bool xpt2046_get_xy(uint16_t *p_x, uint16_t *p_y)
     {
         return false;
     }
+
+    if (p_raw_x != NULL) *p_raw_x = raw_x;
+    if (p_raw_y != NULL) *p_raw_y = raw_y;
 
     uint16_t in_x = raw_x;
     uint16_t in_y = raw_y;
