@@ -409,16 +409,18 @@ void UI_Draw_Dashboard(float temp, float humi, uint8_t light_percent, uint8_t pi
 
     char str_buf[16];
 
-    /* 1. Header Mode Badge (x=164, y=5, w=68, h=18) */
+    /* 1. Header Mode Badge (x=154, y=4, w=80, h=22) */
     if (auto_mode)
     {
-        ili9341_fill_rect(164, 5, 68, 18, ILI9341_DARKGREEN);
-        UI_DrawString(170, 10, "[ AUTO ]", ILI9341_WHITE, ILI9341_DARKGREEN, 1);
+        ili9341_fill_rect(154, 4, 80, 22, ILI9341_DARKGREEN);
+        ili9341_draw_rect(154, 4, 80, 22, ILI9341_GREENYELLOW);
+        UI_DrawString(163, 9, "[ AUTO ]", ILI9341_WHITE, ILI9341_DARKGREEN, 1);
     }
     else
     {
-        ili9341_fill_rect(164, 5, 68, 18, ILI9341_ORANGE);
-        UI_DrawString(170, 10, "[ MANU ]", ILI9341_BLACK, ILI9341_ORANGE, 1);
+        ili9341_fill_rect(154, 4, 80, 22, ILI9341_ORANGE);
+        ili9341_draw_rect(154, 4, 80, 22, ILI9341_WHITE);
+        UI_DrawString(163, 9, "[ MANU ]", ILI9341_BLACK, ILI9341_ORANGE, 1);
     }
 
     /* 2. Temperature Value (Large Font Scale 2) */
@@ -574,7 +576,7 @@ int main(void)
   uint8_t sim_light1 = 1;
   uint8_t sim_light2 = 0;
   uint8_t sim_dehum = 0;
-  uint8_t sim_mode = 1;
+  uint8_t sim_mode = 0; /* Default to MANUAL mode so relays toggle immediately on touch */
   uint32_t last_telemetry_tick = 0;
   uint32_t last_touch_tick = 0;
   uint32_t last_lockout_tick = 0;
@@ -600,19 +602,19 @@ int main(void)
     {
       if (xpt2046_get_xy(&touch_x, &touch_y))
       {
-        if (!touch_was_pressed && (HAL_GetTick() - last_touch_tick > 200))
+        if (!touch_was_pressed && (HAL_GetTick() - last_touch_tick > 180))
         {
           touch_was_pressed = true;
           last_touch_tick = HAL_GetTick();
 
-          /* Hitbox 1: Header Mode Button (Top-Right: y <= 40, x >= 130) */
-          if (touch_y <= 40 && touch_x >= 130)
+          /* Hitbox 1: Header Mode Button (Top-Right: y <= 50, x >= 110) */
+          if (touch_y <= 50 && touch_x >= 110)
           {
             sim_mode = !sim_mode;
             need_ui_refresh = true;
           }
-          /* Hitbox 2: Motion Alert Card (y: 140..190) */
-          else if (touch_y >= 140 && touch_y <= 190)
+          /* Hitbox 2: Motion Alert Card (y: 135..190) */
+          else if (touch_y >= 135 && touch_y <= 190)
           {
             sim_pir = !sim_pir;
             need_ui_refresh = true;
@@ -622,11 +624,7 @@ int main(void)
           {
             if (sim_mode == 1)
             {
-              /* AUTO MODE: Relays are locked to automated sensors. Show alert banner */
-              lockout_banner_visible = true;
-              last_lockout_tick = HAL_GetTick();
-              ili9341_fill_rect(0, 293, ILI9341_WIDTH, 27, 0x0842);
-              UI_DrawString(8, 301, "[AUTO] CHUYEN MANU DE CHINH!", ILI9341_ORANGE, 0x0842, 1);
+              /* AUTO MODE: Relays are locked to automated sensors. Option 1 Lockout */
             }
             else
             {
@@ -634,7 +632,7 @@ int main(void)
               if (touch_x < 120)
               {
                 /* Left Column: Upper = FAN, Lower = DEHUM */
-                if (touch_y < 240)
+                if (touch_y < 242)
                 {
                   sim_fan = !sim_fan;
                 }
@@ -646,7 +644,7 @@ int main(void)
               else
               {
                 /* Right Column: Upper = LIGHT 1, Lower = LIGHT 2 */
-                if (touch_y < 240)
+                if (touch_y < 242)
                 {
                   sim_light1 = !sim_light1;
                 }
@@ -656,12 +654,24 @@ int main(void)
                 }
               }
               need_ui_refresh = true;
-
-              /* Display live coordinate diagnostic on Footer Bar */
-              char footer_dbg[24];
-              snprintf(footer_dbg, sizeof(footer_dbg), "TOUCH: (%3d,%3d)", touch_x, touch_y);
-              UI_DrawString(12, 301, footer_dbg, UI_COLOR_LIGHT, 0x0842, 1);
             }
+          }
+
+          /* ALWAYS DISPLAY LIVE DIAGNOSTIC ON FOOTER BAR FOR ANY TOUCH! */
+          char footer_dbg[32];
+          if (sim_mode == 1 && touch_y >= 190 && touch_y <= 295)
+          {
+            snprintf(footer_dbg, sizeof(footer_dbg), "[AUTO-LOCK] T:(%3d,%3d)", touch_x, touch_y);
+            ili9341_fill_rect(0, 293, ILI9341_WIDTH, 27, 0x4800);
+            UI_DrawString(8, 301, footer_dbg, ILI9341_YELLOW, 0x4800, 1);
+            lockout_banner_visible = true;
+            last_lockout_tick = HAL_GetTick();
+          }
+          else
+          {
+            snprintf(footer_dbg, sizeof(footer_dbg), "%s | TOUCH:(%3d,%3d)", sim_mode ? "AUTO" : "MANU", touch_x, touch_y);
+            ili9341_fill_rect(0, 293, ILI9341_WIDTH, 27, 0x0842);
+            UI_DrawString(8, 301, footer_dbg, UI_COLOR_LIGHT, 0x0842, 1);
           }
         }
       }
@@ -687,8 +697,8 @@ int main(void)
       {
         lockout_banner_visible = true;
         last_lockout_tick = HAL_GetTick();
-        ili9341_fill_rect(0, 293, ILI9341_WIDTH, 27, 0x0842);
-        UI_DrawString(8, 301, "[AUTO] CHUYEN MANU DE CHINH!", ILI9341_ORANGE, 0x0842, 1);
+        ili9341_fill_rect(0, 293, ILI9341_WIDTH, 27, 0x4800);
+        UI_DrawString(8, 301, "[AUTO-LOCK] FAN BTN IGNORED", ILI9341_YELLOW, 0x4800, 1);
       }
       else
       {
@@ -703,8 +713,8 @@ int main(void)
       {
         lockout_banner_visible = true;
         last_lockout_tick = HAL_GetTick();
-        ili9341_fill_rect(0, 293, ILI9341_WIDTH, 27, 0x0842);
-        UI_DrawString(8, 301, "[AUTO] CHUYEN MANU DE CHINH!", ILI9341_ORANGE, 0x0842, 1);
+        ili9341_fill_rect(0, 293, ILI9341_WIDTH, 27, 0x4800);
+        UI_DrawString(8, 301, "[AUTO-LOCK] L1 BTN IGNORED ", ILI9341_YELLOW, 0x4800, 1);
       }
       else
       {
@@ -719,8 +729,8 @@ int main(void)
       {
         lockout_banner_visible = true;
         last_lockout_tick = HAL_GetTick();
-        ili9341_fill_rect(0, 293, ILI9341_WIDTH, 27, 0x0842);
-        UI_DrawString(8, 301, "[AUTO] CHUYEN MANU DE CHINH!", ILI9341_ORANGE, 0x0842, 1);
+        ili9341_fill_rect(0, 293, ILI9341_WIDTH, 27, 0x4800);
+        UI_DrawString(8, 301, "[AUTO-LOCK] DEH BTN IGNORED", ILI9341_YELLOW, 0x4800, 1);
       }
       else
       {
