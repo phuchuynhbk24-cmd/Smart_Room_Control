@@ -134,8 +134,10 @@ void ili9341_write_data(uint8_t *p_data, uint16_t size)
 
 void ili9341_init(void)
 {
+#ifdef LCD_BL_Pin
     /* Enable display backlight */
     HAL_GPIO_WritePin(LCD_BL_GPIO_Port, LCD_BL_Pin, GPIO_PIN_SET);
+#endif
 
     /* Ensure CS is de-asserted */
     ili9341_unselect();

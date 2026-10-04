@@ -64,11 +64,8 @@ volatile bool g_exti_btn_dehum_flag = false;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_ADC1_Init(void);
 static void MX_SPI1_Init(void);
 static void MX_SPI2_Init(void);
-static void MX_TIM2_Init(void);
-static void MX_USART1_UART_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -554,13 +551,10 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_ADC1_Init();
   MX_SPI1_Init();
   MX_SPI2_Init();
-  MX_TIM2_Init();
-  MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
-  /* Initialize ILI9341 TFT display driver (turns backlight HIGH on PA1) */
+  /* Initialize ILI9341 TFT display driver */
   ili9341_init();
   /* Initialize XPT2046 resistive touch controller (SPI2) */
   xpt2046_init();
@@ -771,22 +765,9 @@ int main(void)
       UI_DrawString(12, 301, "SYS: RUNNING | STM32F103", UI_COLOR_TEXT_MUTED, 0x0842, 1);
     }
 
-    /* 4. Instant UI Refresh and Hardware Relay/LED Synchronization */
+    /* 4. Instant UI Refresh */
     if (need_ui_refresh)
     {
-      /* Drive Physical Relay GPIOs and Feedback LEDs */
-      HAL_GPIO_WritePin(RELAY_FAN_GPIO_Port, RELAY_FAN_Pin, sim_fan ? GPIO_PIN_SET : GPIO_PIN_RESET);
-      HAL_GPIO_WritePin(LED_CH1_GPIO_Port, LED_CH1_Pin, sim_fan ? GPIO_PIN_SET : GPIO_PIN_RESET);
-
-      HAL_GPIO_WritePin(RELAY_LIGHT1_GPIO_Port, RELAY_LIGHT1_Pin, sim_light1 ? GPIO_PIN_SET : GPIO_PIN_RESET);
-      HAL_GPIO_WritePin(LED_CH2_GPIO_Port, LED_CH2_Pin, sim_light1 ? GPIO_PIN_SET : GPIO_PIN_RESET);
-
-      HAL_GPIO_WritePin(RELAY_LIGHT2_GPIO_Port, RELAY_LIGHT2_Pin, sim_light2 ? GPIO_PIN_SET : GPIO_PIN_RESET);
-      HAL_GPIO_WritePin(LED_CH3_GPIO_Port, LED_CH3_Pin, sim_light2 ? GPIO_PIN_SET : GPIO_PIN_RESET);
-
-      HAL_GPIO_WritePin(RELAY_DEHUM_GPIO_Port, RELAY_DEHUM_Pin, sim_dehum ? GPIO_PIN_SET : GPIO_PIN_RESET);
-      HAL_GPIO_WritePin(LED_CH4_GPIO_Port, LED_CH4_Pin, sim_dehum ? GPIO_PIN_SET : GPIO_PIN_RESET);
-
       /* Update HMI Screen */
       UI_Draw_Dashboard(sim_temp, sim_humi, sim_light, sim_pir,
                         sim_fan, sim_light1, sim_light2, sim_dehum,
@@ -847,7 +828,7 @@ void SystemClock_Config(void)
   * @param None
   * @retval None
   */
-static void MX_ADC1_Init(void)
+static void __attribute__((unused)) MX_ADC1_Init(void)
 {
 
   /* USER CODE BEGIN ADC1_Init 0 */
@@ -970,7 +951,7 @@ static void MX_SPI2_Init(void)
   * @param None
   * @retval None
   */
-static void MX_TIM2_Init(void)
+static void __attribute__((unused)) MX_TIM2_Init(void)
 {
 
   /* USER CODE BEGIN TIM2_Init 0 */
@@ -1019,7 +1000,7 @@ static void MX_TIM2_Init(void)
   * @param None
   * @retval None
   */
-static void MX_USART1_UART_Init(void)
+static void __attribute__((unused)) MX_USART1_UART_Init(void)
 {
 
   /* USER CODE BEGIN USART1_Init 0 */
@@ -1055,11 +1036,6 @@ static void MX_USART1_UART_Init(void)
 static void MX_GPIO_Init(void)
 {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
-  /* USER CODE BEGIN MX_GPIO_Init_1 */
-  /* Enable AFIO clock and disable JTAG (keep SWD) to free PA15, PB3, PB4 for Buttons */
-  __HAL_RCC_AFIO_CLK_ENABLE();
-  __HAL_AFIO_REMAP_SWJ_NOJTAG();
-  /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOC_CLK_ENABLE();
@@ -1067,138 +1043,47 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
-  /*Configure GPIO pin Output Level */
+  /* Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(SYS_HEARTBEAT_GPIO_Port, SYS_HEARTBEAT_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(LCD_CS_GPIO_Port, LCD_CS_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOB, LCD_DC_Pin|LCD_RST_Pin|TOUCH_CS_Pin, GPIO_PIN_SET);
 
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, LCD_BL_Pin|LCD_RST_Pin|LCD_DC_Pin|LCD_CS_Pin|DHT22_DATA_Pin
-                          |LED_CH1_Pin|LED_CH2_Pin, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, LED_CH3_Pin|LED_CH4_Pin|TOUCH_CS_Pin|RELAY_FAN_Pin
-                          |RELAY_LIGHT1_Pin|RELAY_LIGHT2_Pin|RELAY_DEHUM_Pin, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin : SYS_HEARTBEAT_Pin */
+  /* Configure GPIO pin : SYS_HEARTBEAT_Pin (PC13) */
   GPIO_InitStruct.Pin = SYS_HEARTBEAT_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(SYS_HEARTBEAT_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : LCD_BL_Pin LCD_RST_Pin LCD_DC_Pin LCD_CS_Pin */
-  GPIO_InitStruct.Pin = LCD_BL_Pin|LCD_RST_Pin|LCD_DC_Pin|LCD_CS_Pin;
+  /* Configure GPIO pin : LCD_CS_Pin (PA4) */
+  GPIO_InitStruct.Pin = LCD_CS_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+  HAL_GPIO_Init(LCD_CS_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : LED_CH3_Pin LED_CH4_Pin RELAY_FAN_Pin RELAY_LIGHT1_Pin
-                           RELAY_LIGHT2_Pin RELAY_DEHUM_Pin */
-  GPIO_InitStruct.Pin = LED_CH3_Pin|LED_CH4_Pin|RELAY_FAN_Pin|RELAY_LIGHT1_Pin
-                          |RELAY_LIGHT2_Pin|RELAY_DEHUM_Pin;
+  /* Configure GPIO pins : LCD_DC_Pin (PB0), LCD_RST_Pin (PB1), TOUCH_CS_Pin (PB12) */
+  GPIO_InitStruct.Pin = LCD_DC_Pin|LCD_RST_Pin|TOUCH_CS_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : PIR_INPUT_Pin */
-  GPIO_InitStruct.Pin = PIR_INPUT_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
-  HAL_GPIO_Init(PIR_INPUT_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : TOUCH_IRQ_Pin BTN_LIGHT_Pin BTN_FAN_Pin BTN_DEHUM_Pin */
-  GPIO_InitStruct.Pin = TOUCH_IRQ_Pin|BTN_LIGHT_Pin|BTN_FAN_Pin|BTN_DEHUM_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  /* Configure GPIO pin : TOUCH_IRQ_Pin (PB11) */
+  GPIO_InitStruct.Pin = TOUCH_IRQ_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+  HAL_GPIO_Init(TOUCH_IRQ_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : TOUCH_CS_Pin */
-  GPIO_InitStruct.Pin = TOUCH_CS_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-  HAL_GPIO_Init(TOUCH_CS_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : DHT22_DATA_Pin */
-  GPIO_InitStruct.Pin = DHT22_DATA_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-  HAL_GPIO_Init(DHT22_DATA_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : LED_CH1_Pin LED_CH2_Pin */
-  GPIO_InitStruct.Pin = LED_CH1_Pin|LED_CH2_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : BTN_MODE_Pin */
-  GPIO_InitStruct.Pin = BTN_MODE_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
-  HAL_GPIO_Init(BTN_MODE_GPIO_Port, &GPIO_InitStruct);
-
-  /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(EXTI3_IRQn, 3, 0);
-  HAL_NVIC_EnableIRQ(EXTI3_IRQn);
-
-  HAL_NVIC_SetPriority(EXTI4_IRQn, 3, 0);
-  HAL_NVIC_EnableIRQ(EXTI4_IRQn);
-
-  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 3, 0);
-  HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
-
+  /* EXTI interrupt init for TOUCH_IRQ (PB11) */
   HAL_NVIC_SetPriority(EXTI15_10_IRQn, 3, 0);
   HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
-
-  /* USER CODE BEGIN MX_GPIO_Init_2 */
-
-  /* USER CODE END MX_GPIO_Init_2 */
 }
 
 /* USER CODE BEGIN 4 */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-  uint32_t now = HAL_GetTick();
-
-  if (GPIO_Pin == BTN_MODE_Pin)
-  {
-    static uint32_t s_last_mode_tick = 0;
-    if (now - s_last_mode_tick > 200)
-    {
-      s_last_mode_tick = now;
-      g_exti_btn_mode_flag = true;
-    }
-  }
-  else if (GPIO_Pin == BTN_FAN_Pin)
-  {
-    static uint32_t s_last_fan_tick = 0;
-    if (now - s_last_fan_tick > 200)
-    {
-      s_last_fan_tick = now;
-      g_exti_btn_fan_flag = true;
-    }
-  }
-  else if (GPIO_Pin == BTN_LIGHT_Pin)
-  {
-    static uint32_t s_last_light_tick = 0;
-    if (now - s_last_light_tick > 200)
-    {
-      s_last_light_tick = now;
-      g_exti_btn_light_flag = true;
-    }
-  }
-  else if (GPIO_Pin == BTN_DEHUM_Pin)
-  {
-    static uint32_t s_last_dehum_tick = 0;
-    if (now - s_last_dehum_tick > 200)
-    {
-      s_last_dehum_tick = now;
-      g_exti_btn_dehum_flag = true;
-    }
-  }
+  (void)GPIO_Pin;
 }
 /* USER CODE END 4 */
 
