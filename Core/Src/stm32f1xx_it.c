@@ -199,49 +199,11 @@ void SysTick_Handler(void)
 /******************************************************************************/
 
 /**
-  * @brief This function handles EXTI line3 interrupt.
-  */
-void EXTI3_IRQHandler(void)
-{
-#ifdef BTN_LIGHT_Pin
-  HAL_GPIO_EXTI_IRQHandler(BTN_LIGHT_Pin);
-#endif
-}
-
-/**
-  * @brief This function handles EXTI line4 interrupt.
-  */
-void EXTI4_IRQHandler(void)
-{
-#ifdef BTN_FAN_Pin
-  HAL_GPIO_EXTI_IRQHandler(BTN_FAN_Pin);
-#endif
-}
-
-/**
-  * @brief This function handles EXTI line[9:5] interrupts.
-  */
-void EXTI9_5_IRQHandler(void)
-{
-#ifdef BTN_DEHUM_Pin
-  HAL_GPIO_EXTI_IRQHandler(BTN_DEHUM_Pin);
-#endif
-}
-
-/**
-  * @brief This function handles EXTI line[15:10] interrupts.
+  * @brief This function handles EXTI line[15:10] interrupts (Touch PENIRQ on PB11).
   */
 void EXTI15_10_IRQHandler(void)
 {
-#ifdef PIR_INPUT_Pin
-  HAL_GPIO_EXTI_IRQHandler(PIR_INPUT_Pin);
-#endif
-#ifdef TOUCH_IRQ_Pin
   HAL_GPIO_EXTI_IRQHandler(TOUCH_IRQ_Pin);
-#endif
-#ifdef BTN_MODE_Pin
-  HAL_GPIO_EXTI_IRQHandler(BTN_MODE_Pin);
-#endif
 }
 
 /* USER CODE BEGIN 1 */

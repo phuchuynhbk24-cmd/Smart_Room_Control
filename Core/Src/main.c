@@ -45,20 +45,11 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-ADC_HandleTypeDef hadc1;
-
 SPI_HandleTypeDef hspi1;
 SPI_HandleTypeDef hspi2;
 
-TIM_HandleTypeDef htim2;
-
-UART_HandleTypeDef huart1;
-
 /* USER CODE BEGIN PV */
-volatile bool g_exti_btn_mode_flag  = false;
-volatile bool g_exti_btn_fan_flag   = false;
-volatile bool g_exti_btn_light_flag = false;
-volatile bool g_exti_btn_dehum_flag = false;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -677,63 +668,7 @@ int main(void)
       touch_was_pressed = false;
     }
 
-    /* 2. Process Physical Hardware Push Button Events (From Non-blocking EXTI Callbacks) */
-    if (g_exti_btn_mode_flag)
-    {
-      g_exti_btn_mode_flag = false;
-      sim_mode = !sim_mode;
-      need_ui_refresh = true;
-    }
-    if (g_exti_btn_fan_flag)
-    {
-      g_exti_btn_fan_flag = false;
-      if (sim_mode == 1)
-      {
-        lockout_banner_visible = true;
-        last_lockout_tick = HAL_GetTick();
-        ili9341_fill_rect(0, 293, ILI9341_WIDTH, 27, 0x4800);
-        UI_DrawString(8, 301, "[AUTO-LOCK] FAN BTN IGNORED", ILI9341_YELLOW, 0x4800, 1);
-      }
-      else
-      {
-        sim_fan = !sim_fan;
-        need_ui_refresh = true;
-      }
-    }
-    if (g_exti_btn_light_flag)
-    {
-      g_exti_btn_light_flag = false;
-      if (sim_mode == 1)
-      {
-        lockout_banner_visible = true;
-        last_lockout_tick = HAL_GetTick();
-        ili9341_fill_rect(0, 293, ILI9341_WIDTH, 27, 0x4800);
-        UI_DrawString(8, 301, "[AUTO-LOCK] L1 BTN IGNORED ", ILI9341_YELLOW, 0x4800, 1);
-      }
-      else
-      {
-        sim_light1 = !sim_light1;
-        need_ui_refresh = true;
-      }
-    }
-    if (g_exti_btn_dehum_flag)
-    {
-      g_exti_btn_dehum_flag = false;
-      if (sim_mode == 1)
-      {
-        lockout_banner_visible = true;
-        last_lockout_tick = HAL_GetTick();
-        ili9341_fill_rect(0, 293, ILI9341_WIDTH, 27, 0x4800);
-        UI_DrawString(8, 301, "[AUTO-LOCK] DEH BTN IGNORED", ILI9341_YELLOW, 0x4800, 1);
-      }
-      else
-      {
-        sim_dehum = !sim_dehum;
-        need_ui_refresh = true;
-      }
-    }
-
-    /* 3. Periodic Background Sensor Simulation & Autonomous Logic (every 2.5 seconds) */
+    /* 2. Periodic Background Sensor Simulation & Autonomous Logic (every 2.5 seconds) */
     if (HAL_GetTick() - last_telemetry_tick >= 2500)
     {
       last_telemetry_tick = HAL_GetTick();
@@ -785,7 +720,6 @@ void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
-  RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
 
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
@@ -815,59 +749,6 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_ADC;
-  PeriphClkInit.AdcClockSelection = RCC_ADCPCLK2_DIV6;
-  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
-  {
-    Error_Handler();
-  }
-}
-
-/**
-  * @brief ADC1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void __attribute__((unused)) MX_ADC1_Init(void)
-{
-
-  /* USER CODE BEGIN ADC1_Init 0 */
-
-  /* USER CODE END ADC1_Init 0 */
-
-  ADC_ChannelConfTypeDef sConfig = {0};
-
-  /* USER CODE BEGIN ADC1_Init 1 */
-
-  /* USER CODE END ADC1_Init 1 */
-
-  /** Common config
-  */
-  hadc1.Instance = ADC1;
-  hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;
-  hadc1.Init.ContinuousConvMode = DISABLE;
-  hadc1.Init.DiscontinuousConvMode = DISABLE;
-  hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
-  hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-  hadc1.Init.NbrOfConversion = 1;
-  if (HAL_ADC_Init(&hadc1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure Regular Channel
-  */
-  sConfig.Channel = ADC_CHANNEL_0;
-  sConfig.Rank = ADC_REGULAR_RANK_1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_55CYCLES_5;
-  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN ADC1_Init 2 */
-
-  /* USER CODE END ADC1_Init 2 */
-
 }
 
 /**
@@ -946,87 +827,7 @@ static void MX_SPI2_Init(void)
 
 }
 
-/**
-  * @brief TIM2 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void __attribute__((unused)) MX_TIM2_Init(void)
-{
 
-  /* USER CODE BEGIN TIM2_Init 0 */
-
-  /* USER CODE END TIM2_Init 0 */
-
-  TIM_MasterConfigTypeDef sMasterConfig = {0};
-  TIM_OC_InitTypeDef sConfigOC = {0};
-
-  /* USER CODE BEGIN TIM2_Init 1 */
-
-  /* USER CODE END TIM2_Init 1 */
-  htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 0;
-  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 999;
-  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
-  if (HAL_TIM_PWM_Init(&htim2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 0;
-  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN TIM2_Init 2 */
-
-  /* USER CODE END TIM2_Init 2 */
-  HAL_TIM_MspPostInit(&htim2);
-
-}
-
-/**
-  * @brief USART1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void __attribute__((unused)) MX_USART1_UART_Init(void)
-{
-
-  /* USER CODE BEGIN USART1_Init 0 */
-
-  /* USER CODE END USART1_Init 0 */
-
-  /* USER CODE BEGIN USART1_Init 1 */
-
-  /* USER CODE END USART1_Init 1 */
-  huart1.Instance = USART1;
-  huart1.Init.BaudRate = 115200;
-  huart1.Init.WordLength = UART_WORDLENGTH_8B;
-  huart1.Init.StopBits = UART_STOPBITS_1;
-  huart1.Init.Parity = UART_PARITY_NONE;
-  huart1.Init.Mode = UART_MODE_TX_RX;
-  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
-  if (HAL_UART_Init(&huart1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN USART1_Init 2 */
-
-  /* USER CODE END USART1_Init 2 */
-
-}
 
 /**
   * @brief GPIO Initialization Function
