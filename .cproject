@@ -49,6 +49,10 @@
 									<listOptionValue builtIn="false" value="../device/ili9341"/>
 									<listOptionValue builtIn="false" value="../device/xpt2046"/>
 									<listOptionValue builtIn="false" value="../device/button"/>
+									<listOptionValue builtIn="false" value="../device/relay"/>
+									<listOptionValue builtIn="false" value="../middleware/ui"/>
+									<listOptionValue builtIn="false" value="../middleware/input_mgr"/>
+									<listOptionValue builtIn="false" value="../app"/>
 								</option>
 								<inputType id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.input.c.155414612" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.input.c"/>
 							</tool>
