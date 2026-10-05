@@ -598,13 +598,7 @@ int main(void)
             sim_mode = !sim_mode;
             need_ui_refresh = true;
           }
-          /* Hitbox 2: Motion Alert Card (y: 135..190) */
-          else if (touch_y >= 135 && touch_y <= 190)
-          {
-            sim_pir = !sim_pir;
-            need_ui_refresh = true;
-          }
-          /* Hitbox 3: Relay Control Matrix (y: 190..295) - Partitioned 2x2 Grid */
+          /* Hitbox: Relay Control Matrix (y: 190..295) - Partitioned 2x2 Grid */
           else if (touch_y >= 190 && touch_y <= 295)
           {
             if (sim_mode == 1)
