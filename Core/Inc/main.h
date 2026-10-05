@@ -70,6 +70,14 @@ void Error_Handler(void);
 #define TOUCH_IRQ_EXTI_IRQn EXTI15_10_IRQn
 #define TOUCH_CS_Pin GPIO_PIN_12
 #define TOUCH_CS_GPIO_Port GPIOB
+#define RELAY_FAN_Pin GPIO_PIN_4
+#define RELAY_FAN_GPIO_Port GPIOB
+#define RELAY_LIGHT1_Pin GPIO_PIN_15
+#define RELAY_LIGHT1_GPIO_Port GPIOA
+#define RELAY_LIGHT2_Pin GPIO_PIN_6
+#define RELAY_LIGHT2_GPIO_Port GPIOB
+#define RELAY_DEHUM_Pin GPIO_PIN_12
+#define RELAY_DEHUM_GPIO_Port GPIOA
 
 /* USER CODE BEGIN Private defines */
 

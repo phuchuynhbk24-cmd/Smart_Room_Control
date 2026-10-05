@@ -557,8 +557,8 @@ int main(void)
   float sim_humi = 65.0f;
   uint8_t sim_light = 85;
   uint8_t sim_pir = 0;
-  uint8_t sim_fan = 1;
-  uint8_t sim_light1 = 1;
+  uint8_t sim_fan = 0;
+  uint8_t sim_light1 = 0;
   uint8_t sim_light2 = 0;
   uint8_t sim_dehum = 0;
   uint8_t sim_mode = 0; /* Default to MANUAL mode so relays toggle immediately on touch */
@@ -567,6 +567,12 @@ int main(void)
   uint32_t last_lockout_tick = 0;
   bool touch_was_pressed = false;
   bool lockout_banner_visible = false;
+
+  /* Initialize physical relay outputs to default states */
+  HAL_GPIO_WritePin(RELAY_FAN_GPIO_Port, RELAY_FAN_Pin, sim_fan ? GPIO_PIN_SET : GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(RELAY_LIGHT1_GPIO_Port, RELAY_LIGHT1_Pin, sim_light1 ? GPIO_PIN_SET : GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(RELAY_LIGHT2_GPIO_Port, RELAY_LIGHT2_Pin, sim_light2 ? GPIO_PIN_SET : GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(RELAY_DEHUM_GPIO_Port, RELAY_DEHUM_Pin, sim_dehum ? GPIO_PIN_SET : GPIO_PIN_RESET);
 
   /* Initial dashboard render */
   UI_Draw_Dashboard(sim_temp, sim_humi, sim_light, sim_pir,
@@ -694,9 +700,15 @@ int main(void)
       UI_DrawString(12, 301, "SYS: RUNNING | STM32F103", UI_COLOR_TEXT_MUTED, 0x0842, 1);
     }
 
-    /* 4. Instant UI Refresh */
+    /* 4. Instant UI Refresh & Relay Actuation */
     if (need_ui_refresh)
     {
+      /* Drive Physical Relay GPIOs */
+      HAL_GPIO_WritePin(RELAY_FAN_GPIO_Port, RELAY_FAN_Pin, sim_fan ? GPIO_PIN_SET : GPIO_PIN_RESET);
+      HAL_GPIO_WritePin(RELAY_LIGHT1_GPIO_Port, RELAY_LIGHT1_Pin, sim_light1 ? GPIO_PIN_SET : GPIO_PIN_RESET);
+      HAL_GPIO_WritePin(RELAY_LIGHT2_GPIO_Port, RELAY_LIGHT2_Pin, sim_light2 ? GPIO_PIN_SET : GPIO_PIN_RESET);
+      HAL_GPIO_WritePin(RELAY_DEHUM_GPIO_Port, RELAY_DEHUM_Pin, sim_dehum ? GPIO_PIN_SET : GPIO_PIN_RESET);
+
       /* Update HMI Screen */
       UI_Draw_Dashboard(sim_temp, sim_humi, sim_light, sim_pir,
                         sim_fan, sim_light1, sim_light2, sim_dehum,
@@ -838,10 +850,16 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
+  /* Enable AFIO clock and disable JTAG (keep SWD) to free PA15, PB3, PB4 */
+  __HAL_RCC_AFIO_CLK_ENABLE();
+  __HAL_AFIO_REMAP_SWJ_NOJTAG();
+
   /* Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(SYS_HEARTBEAT_GPIO_Port, SYS_HEARTBEAT_Pin, GPIO_PIN_RESET);
   HAL_GPIO_WritePin(LCD_CS_GPIO_Port, LCD_CS_Pin, GPIO_PIN_SET);
   HAL_GPIO_WritePin(GPIOB, LCD_DC_Pin|LCD_RST_Pin|TOUCH_CS_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOA, RELAY_DEHUM_Pin|RELAY_LIGHT1_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, RELAY_FAN_Pin|RELAY_LIGHT2_Pin, GPIO_PIN_RESET);
 
   /* Configure GPIO pin : SYS_HEARTBEAT_Pin (PC13) */
   GPIO_InitStruct.Pin = SYS_HEARTBEAT_Pin;
@@ -857,11 +875,25 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(LCD_CS_GPIO_Port, &GPIO_InitStruct);
 
+  /* Configure GPIO pins : RELAY_DEHUM_Pin (PA12), RELAY_LIGHT1_Pin (PA15) */
+  GPIO_InitStruct.Pin = RELAY_DEHUM_Pin|RELAY_LIGHT1_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
   /* Configure GPIO pins : LCD_DC_Pin (PB0), LCD_RST_Pin (PB1), TOUCH_CS_Pin (PB12) */
   GPIO_InitStruct.Pin = LCD_DC_Pin|LCD_RST_Pin|TOUCH_CS_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /* Configure GPIO pins : RELAY_FAN_Pin (PB4), RELAY_LIGHT2_Pin (PB6) */
+  GPIO_InitStruct.Pin = RELAY_FAN_Pin|RELAY_LIGHT2_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /* Configure GPIO pin : TOUCH_IRQ_Pin (PB11) */
