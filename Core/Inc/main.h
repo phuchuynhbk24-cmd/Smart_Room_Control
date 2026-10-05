@@ -78,6 +78,14 @@ void Error_Handler(void);
 #define RELAY_LIGHT2_GPIO_Port GPIOB
 #define RELAY_DEHUM_Pin GPIO_PIN_12
 #define RELAY_DEHUM_GPIO_Port GPIOA
+#define BTN_1_Pin GPIO_PIN_3
+#define BTN_1_GPIO_Port GPIOA
+#define BTN_2_Pin GPIO_PIN_2
+#define BTN_2_GPIO_Port GPIOB
+#define BTN_3_Pin GPIO_PIN_10
+#define BTN_3_GPIO_Port GPIOA
+#define BTN_4_Pin GPIO_PIN_11
+#define BTN_4_GPIO_Port GPIOA
 
 /* USER CODE BEGIN Private defines */
 

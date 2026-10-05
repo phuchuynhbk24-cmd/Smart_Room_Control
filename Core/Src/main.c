@@ -23,6 +23,7 @@
 /* USER CODE BEGIN Includes */
 #include "ili9341.h"
 #include "xpt2046.h"
+#include "button.h"
 #include "ui_dashboard.h"
 #include <stdio.h>
 #include <stdbool.h>
@@ -549,6 +550,8 @@ int main(void)
   ili9341_init();
   /* Initialize XPT2046 resistive touch controller (SPI2) */
   xpt2046_init();
+  /* Initialize physical push button driver */
+  button_init();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -588,7 +591,61 @@ int main(void)
     uint16_t touch_y = 0;
     bool need_ui_refresh = false;
 
-    /* 1. Touch Screen Processing (Sampled safely) */
+    /* 1. Physical Push Buttons Processing */
+    button_update();
+
+    if (button_was_pressed(BTN_MODE))
+    {
+      sim_mode = !sim_mode;
+      need_ui_refresh = true;
+    }
+    if (button_was_pressed(BTN_FAN))
+    {
+      if (sim_mode == 0)
+      {
+        sim_fan = !sim_fan;
+        need_ui_refresh = true;
+      }
+      else
+      {
+        ili9341_fill_rect(0, 293, ILI9341_WIDTH, 27, 0x4800);
+        UI_DrawString(8, 301, "[AUTO-LOCK] BTN FAN", ILI9341_YELLOW, 0x4800, 1);
+        lockout_banner_visible = true;
+        last_lockout_tick = HAL_GetTick();
+      }
+    }
+    if (button_was_pressed(BTN_LIGHT1))
+    {
+      if (sim_mode == 0)
+      {
+        sim_light1 = !sim_light1;
+        need_ui_refresh = true;
+      }
+      else
+      {
+        ili9341_fill_rect(0, 293, ILI9341_WIDTH, 27, 0x4800);
+        UI_DrawString(8, 301, "[AUTO-LOCK] BTN LIGHT 1", ILI9341_YELLOW, 0x4800, 1);
+        lockout_banner_visible = true;
+        last_lockout_tick = HAL_GetTick();
+      }
+    }
+    if (button_was_pressed(BTN_DEHUM))
+    {
+      if (sim_mode == 0)
+      {
+        sim_dehum = !sim_dehum;
+        need_ui_refresh = true;
+      }
+      else
+      {
+        ili9341_fill_rect(0, 293, ILI9341_WIDTH, 27, 0x4800);
+        UI_DrawString(8, 301, "[AUTO-LOCK] BTN DEHUM", ILI9341_YELLOW, 0x4800, 1);
+        lockout_banner_visible = true;
+        last_lockout_tick = HAL_GetTick();
+      }
+    }
+
+    /* 2. Touch Screen Processing (Sampled safely) */
     if (xpt2046_is_touched())
     {
       if (xpt2046_get_xy(&touch_x, &touch_y))
@@ -901,6 +958,18 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(TOUCH_IRQ_GPIO_Port, &GPIO_InitStruct);
+
+  /* Configure GPIO pins : BTN_1_Pin (PA3), BTN_3_Pin (PA10), BTN_4_Pin (PA11) */
+  GPIO_InitStruct.Pin = BTN_1_Pin|BTN_3_Pin|BTN_4_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /* Configure GPIO pin : BTN_2_Pin (PB2) */
+  GPIO_InitStruct.Pin = BTN_2_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /* EXTI interrupt init for TOUCH_IRQ (PB11) */
   HAL_NVIC_SetPriority(EXTI15_10_IRQn, 3, 0);
