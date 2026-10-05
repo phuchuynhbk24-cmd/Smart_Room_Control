@@ -568,6 +568,7 @@ int main(void)
   uint32_t last_telemetry_tick = 0;
   uint32_t last_touch_tick = 0;
   uint32_t last_lockout_tick = 0;
+  uint32_t last_btn_activity_tick = 0;
   bool touch_was_pressed = false;
   bool lockout_banner_visible = false;
 
@@ -591,64 +592,95 @@ int main(void)
     uint16_t touch_y = 0;
     bool need_ui_refresh = false;
 
-    /* 1. Physical Push Buttons Processing */
+    /* 1. Physical Push Buttons Processing (HIGHEST PRIORITY) */
     button_update();
+
+    bool btn_any_down = button_is_down(BTN_MODE) || button_is_down(BTN_FAN) ||
+                        button_is_down(BTN_LIGHT1) || button_is_down(BTN_DEHUM);
+    bool btn_event_occurred = false;
+    char btn_dbg[34];
+    btn_dbg[0] = '\0';
 
     if (button_was_pressed(BTN_MODE))
     {
+      btn_event_occurred = true;
       sim_mode = !sim_mode;
+      snprintf(btn_dbg, sizeof(btn_dbg), "[HW BTN] MODE: %s", sim_mode ? "AUTO" : "MANU");
       need_ui_refresh = true;
     }
     if (button_was_pressed(BTN_FAN))
     {
+      btn_event_occurred = true;
       if (sim_mode == 0)
       {
         sim_fan = !sim_fan;
+        snprintf(btn_dbg, sizeof(btn_dbg), "[HW BTN] FAN: %s", sim_fan ? "ON" : "OFF");
         need_ui_refresh = true;
       }
       else
       {
-        ili9341_fill_rect(0, 293, ILI9341_WIDTH, 27, 0x4800);
-        UI_DrawString(8, 301, "[AUTO-LOCK] BTN FAN", ILI9341_YELLOW, 0x4800, 1);
-        lockout_banner_visible = true;
-        last_lockout_tick = HAL_GetTick();
+        snprintf(btn_dbg, sizeof(btn_dbg), "[AUTO-LOCK] BTN FAN");
       }
     }
     if (button_was_pressed(BTN_LIGHT1))
     {
+      btn_event_occurred = true;
       if (sim_mode == 0)
       {
         sim_light1 = !sim_light1;
+        snprintf(btn_dbg, sizeof(btn_dbg), "[HW BTN] LIGHT1: %s", sim_light1 ? "ON" : "OFF");
         need_ui_refresh = true;
       }
       else
       {
-        ili9341_fill_rect(0, 293, ILI9341_WIDTH, 27, 0x4800);
-        UI_DrawString(8, 301, "[AUTO-LOCK] BTN LIGHT 1", ILI9341_YELLOW, 0x4800, 1);
-        lockout_banner_visible = true;
-        last_lockout_tick = HAL_GetTick();
+        snprintf(btn_dbg, sizeof(btn_dbg), "[AUTO-LOCK] BTN LIGHT 1");
       }
     }
     if (button_was_pressed(BTN_DEHUM))
     {
+      btn_event_occurred = true;
       if (sim_mode == 0)
       {
         sim_dehum = !sim_dehum;
+        snprintf(btn_dbg, sizeof(btn_dbg), "[HW BTN] DEHUM: %s", sim_dehum ? "ON" : "OFF");
         need_ui_refresh = true;
       }
       else
       {
-        ili9341_fill_rect(0, 293, ILI9341_WIDTH, 27, 0x4800);
-        UI_DrawString(8, 301, "[AUTO-LOCK] BTN DEHUM", ILI9341_YELLOW, 0x4800, 1);
-        lockout_banner_visible = true;
-        last_lockout_tick = HAL_GetTick();
+        snprintf(btn_dbg, sizeof(btn_dbg), "[AUTO-LOCK] BTN DEHUM");
       }
     }
 
-    /* 2. Touch Screen Processing (Sampled safely) */
+    if (btn_event_occurred)
+    {
+      last_btn_activity_tick = HAL_GetTick();
+      last_lockout_tick = HAL_GetTick();
+      lockout_banner_visible = true;
+
+      /* Visual priority indicator banner on TFT footer */
+      uint16_t bg_color = (strstr(btn_dbg, "AUTO-LOCK") != NULL) ? 0x4800 : 0x0320;
+      uint16_t txt_color = (strstr(btn_dbg, "AUTO-LOCK") != NULL) ? ILI9341_YELLOW : ILI9341_WHITE;
+      ili9341_fill_rect(0, 293, ILI9341_WIDTH, 27, bg_color);
+      UI_DrawString(8, 301, btn_dbg, txt_color, bg_color, 1);
+    }
+
+    /* 2. Touch Screen Processing (LOWER PRIORITY than Physical Buttons) */
     if (xpt2046_is_touched())
     {
-      if (xpt2046_get_xy(&touch_x, &touch_y))
+      /* Check priority: If physical button is held down, just fired, or active within 400ms */
+      if (btn_any_down || btn_event_occurred || (HAL_GetTick() - last_btn_activity_tick < 400))
+      {
+        if (!touch_was_pressed)
+        {
+          touch_was_pressed = true;
+          /* Physical Button OVERRIDE Touch: display prominent priority indicator */
+          ili9341_fill_rect(0, 293, ILI9341_WIDTH, 27, 0x6008);
+          UI_DrawString(8, 301, "[HW PRIORITY] BTN OVERRIDE TOUCH", ILI9341_WHITE, 0x6008, 1);
+          lockout_banner_visible = true;
+          last_lockout_tick = HAL_GetTick();
+        }
+      }
+      else if (xpt2046_get_xy(&touch_x, &touch_y))
       {
         if (!touch_was_pressed && (HAL_GetTick() - last_touch_tick > 180))
         {
