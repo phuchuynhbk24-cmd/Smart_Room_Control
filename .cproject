@@ -50,6 +50,7 @@
 									<listOptionValue builtIn="false" value="../device/xpt2046"/>
 									<listOptionValue builtIn="false" value="../device/button"/>
 									<listOptionValue builtIn="false" value="../device/relay"/>
+									<listOptionValue builtIn="false" value="../device/sensor"/>
 									<listOptionValue builtIn="false" value="../middleware/ui"/>
 									<listOptionValue builtIn="false" value="../middleware/input_mgr"/>
 									<listOptionValue builtIn="false" value="../app"/>
@@ -134,6 +135,7 @@
 									<listOptionValue builtIn="false" value="../device/xpt2046"/>
 									<listOptionValue builtIn="false" value="../device/button"/>
 									<listOptionValue builtIn="false" value="../device/relay"/>
+									<listOptionValue builtIn="false" value="../device/sensor"/>
 									<listOptionValue builtIn="false" value="../middleware/ui"/>
 									<listOptionValue builtIn="false" value="../middleware/input_mgr"/>
 									<listOptionValue builtIn="false" value="../app"/>
