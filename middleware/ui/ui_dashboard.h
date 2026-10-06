@@ -32,10 +32,10 @@ extern "C" {
  * @brief Dashboard sensor & actuator telemetry data structure
  */
 typedef struct {
-    float    temp;           /**< Room temperature in degrees Celsius (e.g. 28.5) */
-    float    humi;           /**< Relative humidity in percent (e.g. 65.0) */
-    uint8_t  light_percent;  /**< Ambient light intensity (0 - 100%) */
-    uint8_t  pir_motion;     /**< PIR sensor motion status (1: Detected, 0: Clear) */
+    float    temp;           /**< Room temperature in degrees Celsius (float) */
+    float    humi;           /**< Relative humidity in percent (float) */
+    float    light;          /**< Ambient light intensity (float, 0.0 - 100.0%) */
+    bool     pir_motion;     /**< PIR sensor motion status (bool, true: Detected, false: Clear) */
     uint8_t  relay_fan;      /**< Fan relay state (1: ON, 0: OFF) */
     uint8_t  relay_light1;   /**< Light 1 relay state (1: ON, 0: OFF) */
     uint8_t  relay_light2;   /**< Light 2 relay state (1: ON, 0: OFF) */
@@ -48,7 +48,7 @@ typedef struct {
 void UI_Init_Dashboard(void);
 void UI_Force_Redraw(void);
 
-void UI_Draw_Dashboard(float temp, float humi, uint8_t light_percent, uint8_t pir_motion,
+void UI_Draw_Dashboard(float temp, float humi, float light, bool pir_motion,
                        uint8_t relay_fan, uint8_t relay_light1, uint8_t relay_light2, uint8_t relay_dehum,
                        uint8_t auto_mode);
 

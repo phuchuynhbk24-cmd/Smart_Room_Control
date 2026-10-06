@@ -15,19 +15,50 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-/* Application Room Telemetry State */
-static float   s_temp = 28.5f;
-static float   s_humi = 65.0f;
-static uint8_t s_light = 85;
-static uint8_t s_pir = 0;
+/* Application Room Telemetry State (Updated via app_set_sensor_data) */
+static float s_temp = 28.5f;
+static float s_humi = 65.0f;
+static float s_light = 85.0f;
+static bool  s_pir = false;
 
 /* Operational Control Mode: 1 = AUTO, 0 = MANUAL (Default: MANUAL) */
 static uint8_t s_mode = 0;
 
 /* Executive Timers */
-static uint32_t s_last_telemetry_tick = 0;
 static uint32_t s_last_banner_tick = 0;
 static bool     s_banner_active = false;
+
+void app_set_sensor_data(float temp, float humi, float light, bool pir)
+{
+    s_temp = temp;
+    s_humi = humi;
+    s_light = light;
+    s_pir = pir;
+
+    /* In AUTO Mode: Environmental thresholds autonomously command actuators */
+    if (s_mode == 1)
+    {
+        relay_set(RELAY_FAN, (s_temp >= 28.5f));
+        relay_set(RELAY_DEHUM, (s_humi >= 70.0f));
+        relay_set(RELAY_LIGHT1, (s_light < 60.0f || s_pir));
+    }
+
+    /* Refresh Dashboard UI with live sensor data */
+    UI_Draw_Dashboard(s_temp, s_humi, s_light, s_pir,
+                      relay_get(RELAY_FAN),
+                      relay_get(RELAY_LIGHT1),
+                      relay_get(RELAY_LIGHT2),
+                      relay_get(RELAY_DEHUM),
+                      s_mode);
+}
+
+void app_get_sensor_data(float *temp, float *humi, float *light, bool *pir)
+{
+    if (temp)  *temp  = s_temp;
+    if (humi)  *humi  = s_humi;
+    if (light) *light = s_light;
+    if (pir)   *pir   = s_pir;
+}
 
 void app_init(void)
 {
@@ -35,7 +66,6 @@ void app_init(void)
     input_mgr_init();
 
     /* Initial state of relays is already OFF from relay_init() */
-    s_last_telemetry_tick = HAL_GetTick();
     s_last_banner_tick = HAL_GetTick();
     s_banner_active = false;
 
@@ -61,6 +91,12 @@ void app_loop(void)
         {
             case INPUT_ACT_MODE_TOGGLE:
                 s_mode = !s_mode;
+                if (s_mode == 1)
+                {
+                    relay_set(RELAY_FAN, (s_temp >= 28.5f));
+                    relay_set(RELAY_DEHUM, (s_humi >= 70.0f));
+                    relay_set(RELAY_LIGHT1, (s_light < 60.0f || s_pir));
+                }
                 need_ui_refresh = true;
                 break;
 
@@ -97,38 +133,14 @@ void app_loop(void)
         }
     }
 
-    /* 2. Autonomous Environmental Control & Sensor Simulation (Every 2.5s) */
-    if (now - s_last_telemetry_tick >= 2500)
-    {
-        s_last_telemetry_tick = now;
-
-        s_temp += 0.2f;
-        if (s_temp > 33.0f) s_temp = 26.5f;
-
-        s_humi += 0.8f;
-        if (s_humi > 85.0f) s_humi = 58.0f;
-
-        s_light = (s_light >= 95) ? 35 : (s_light + 10);
-
-        /* In AUTO Mode: Environmental thresholds autonomously command actuators */
-        if (s_mode == 1)
-        {
-            relay_set(RELAY_FAN, (s_temp >= 28.5f));
-            relay_set(RELAY_DEHUM, (s_humi >= 70.0f));
-            relay_set(RELAY_LIGHT1, (s_light < 60 || s_pir == 1));
-        }
-
-        need_ui_refresh = true;
-    }
-
-    /* 3. Auto-clear diagnostic footer banner after 2.5 seconds */
+    /* 2. Auto-clear diagnostic footer banner after 2.5 seconds */
     if (s_banner_active && (now - s_last_banner_tick >= 2500))
     {
         s_banner_active = false;
         UI_Clear_Banner();
     }
 
-    /* 4. Refresh Dashboard UI when telemetry or relay states change */
+    /* 3. Refresh Dashboard UI when mode or relay states change */
     if (need_ui_refresh)
     {
         UI_Draw_Dashboard(s_temp, s_humi, s_light, s_pir,

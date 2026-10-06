@@ -311,7 +311,7 @@ void UI_Clear_Banner(void)
     UI_DrawString(12, 301, "SYS: RUNNING | STM32F103", UI_COLOR_TEXT_MUTED, 0x0842, 1);
 }
 
-void UI_Draw_Dashboard(float temp, float humi, uint8_t light_percent, uint8_t pir_motion,
+void UI_Draw_Dashboard(float temp, float humi, float light, bool pir_motion,
                        uint8_t relay_fan, uint8_t relay_light1, uint8_t relay_light2, uint8_t relay_dehum,
                        uint8_t auto_mode)
 {
@@ -352,10 +352,18 @@ void UI_Draw_Dashboard(float temp, float humi, uint8_t light_percent, uint8_t pi
     uint8_t humi_bar = (humi > 100.0f) ? 100 : (uint8_t)humi;
     UI_DrawProgressBar(130, 96, 94, 6, humi_bar, UI_COLOR_HUMI, 0x0821);
 
-    /* Light */
-    snprintf(buf, sizeof(buf), "%3d%%", light_percent);
+    /* Light (float percentage: e.g. 85.5% or 100%) */
+    if (light >= 99.9f)
+    {
+        snprintf(buf, sizeof(buf), "100%%");
+    }
+    else
+    {
+        snprintf(buf, sizeof(buf), "%2d.%1d%%", (int)light, ((int)(light * 10.0f)) % 10);
+    }
     UI_DrawString(16, 142, buf, UI_COLOR_LIGHT, UI_COLOR_CARD_BG, 2);
-    UI_DrawProgressBar(16, 170, 94, 6, light_percent, UI_COLOR_LIGHT, 0x0821);
+    uint8_t light_bar = (uint8_t)((light > 100.0f) ? 100 : ((light < 0.0f) ? 0 : light));
+    UI_DrawProgressBar(16, 170, 94, 6, light_bar, UI_COLOR_LIGHT, 0x0821);
 
     /* Motion Badge */
     if (pir_motion)
@@ -434,7 +442,7 @@ void UI_Display_Data(const UI_Dashboard_Data_t *data)
     {
         return;
     }
-    UI_Draw_Dashboard(data->temp, data->humi, data->light_percent, data->pir_motion,
+    UI_Draw_Dashboard(data->temp, data->humi, data->light, data->pir_motion,
                       data->relay_fan, data->relay_light1, data->relay_light2, data->relay_dehum,
                       data->auto_mode);
 }
