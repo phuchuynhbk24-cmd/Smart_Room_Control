@@ -1,0 +1,77 @@
+<mxfile host="app.diagrams.net" modified="2026-10-20T15:50:00.000Z" agent="Antigravity" version="21.0.0" type="device">
+  <diagram id="block_diagram_smart_room" name="Sơ Đồ Khối Hệ Thống">
+    <mxGraphModel dx="1200" dy="750" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- KHỐI INPUTS (BAO NGOÀI) -->
+        <mxCell id="group_input" value="KHỐI ĐẦU VÀO (INPUTS)" style="swimlane;whiteSpace=wrap;html=1;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=30;horizontalStack=0;rounded=1;arcSize=10;fillColor=#E1F5FE;strokeColor=#0288D1;strokeWidth=2;fontSize=14;fontColor=#01579B;" vertex="1" parent="1">
+          <mxGeometry x="80" y="160" width="260" height="340" as="geometry" />
+        </mxCell>
+        <mxCell id="in_touch" value="Màn hình Cảm ứng&#xa;(Touch Screen XPT2046)&#xa;[SPI2: SCK, MOSI, MISO, CS]" style="text;strokeColor=#81D4FA;fillColor=#FFFFFF;align=center;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rounded=1;fontSize=11;fontStyle=1;" vertex="1" parent="group_input">
+          <mxGeometry y="30" width="260" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="in_button" value="Hệ thống Nút bấm vật lý&#xa;(Tactile Buttons)&#xa;[GPIO In + Debounce]" style="text;strokeColor=#81D4FA;fillColor=#FFFFFF;align=center;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rounded=1;fontSize=11;fontStyle=1;" vertex="1" parent="group_input">
+          <mxGeometry y="100" width="260" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="in_sensor" value="Khối Cảm biến Môi trường&#xa;[Nhiệt độ, Độ ẩm, Ánh sáng, PIR]&#xa;(Đang cập nhật chi tiết...)" style="text;strokeColor=#81D4FA;fillColor=#FFFFFF;align=center;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rounded=1;fontSize=11;fontStyle=2;fontColor=#555555;" vertex="1" parent="group_input">
+          <mxGeometry y="165" width="260" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="in_power" value="Nguồn cấp hệ thống&#xa;(DC 5V / 2A qua Adapter / USB)" style="text;strokeColor=#81D4FA;fillColor=#FFFFFF;align=center;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rounded=1;fontSize=11;fontStyle=1;" vertex="1" parent="group_input">
+          <mxGeometry y="250" width="260" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- KHỐI VI XỬ LÝ TRUNG TÂM (VXL) -->
+        <mxCell id="box_mcu" value="KHỐI VI XỬ LÝ TRUNG TÂM (MCU)&#xa;&#xa;STM32F103C8T6&#xa;(ARM Cortex-M3 @ 72 MHz)&#xa;&#xa;• Xử lý đồ họa &amp; Quản lý hiển thị HMI&#xa;• Giải mã &amp; Lọc nhiễu cảm ứng Touch&#xa;• Lọc chống rung phím bấm vật lý&#xa;• Xử lý logic tự động &amp; Cảnh báo&#xa;• Quản lý đóng/ngắt các kênh Relay&#xa;• Thu nhận thông số từ Khối Cảm biến" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#F57C00;strokeWidth=2.5;fontStyle=1;fontSize=12;fontColor=#E65100;align=center;verticalAlign=middle;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="440" y="150" width="280" height="360" as="geometry" />
+        </mxCell>
+
+        <!-- KHỐI OUTPUTS (BAO NGOÀI) -->
+        <mxCell id="group_output" value="KHỐI ĐẦU RA (OUTPUTS)" style="swimlane;whiteSpace=wrap;html=1;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=30;horizontalStack=0;rounded=1;arcSize=10;fillColor=#E8F5E9;strokeColor=#388E3C;strokeWidth=2;fontSize=14;fontColor=#1B5E20;" vertex="1" parent="1">
+          <mxGeometry x="820" y="170" width="260" height="320" as="geometry" />
+        </mxCell>
+        <mxCell id="out_lcd" value="Màn hình màu TFT LCD 2.8&quot;&#xa;(ILI9341 - 240x320 RGB565)&#xa;[SPI1 18 MHz: SCK, MOSI, CS, DC, RST]&#xa;Hiển thị Dashboard &amp; Giao diện HMI" style="text;strokeColor=#A5D6A7;fillColor=#FFFFFF;align=center;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rounded=1;fontSize=11;fontStyle=1;" vertex="1" parent="group_output">
+          <mxGeometry y="30" width="260" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="out_relay" value="Khối Chấp hành Relay&#xa;(Opto PC817 + Transistor lái)&#xa;[GPIO Output Active Low]&#xa;Đóng/ngắt tải điện 220VAC (Đèn, Quạt)" style="text;strokeColor=#A5D6A7;fillColor=#FFFFFF;align=center;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rounded=1;fontSize=11;fontStyle=1;" vertex="1" parent="group_output">
+          <mxGeometry y="130" width="260" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="out_alarm" value="Chỉ báo &amp; Cảnh báo trạng thái&#xa;(Đồ họa nhấp nháy trên TFT&#xa;&amp; Tín hiệu cảnh báo mở rộng)" style="text;strokeColor=#A5D6A7;fillColor=#FFFFFF;align=center;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rounded=1;fontSize=11;fontStyle=1;" vertex="1" parent="group_output">
+          <mxGeometry y="225" width="260" height="65" as="geometry" />
+        </mxCell>
+
+        <!-- ĐƯỜNG LIÊN KẾT TỪ INPUTS VÀO MCU -->
+        <mxCell id="edge_touch" value="SPI2 (2.25 MHz)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;entryX=0;entryY=0.25;strokeColor=#0288D1;strokeWidth=2;fontSize=10;fontColor=#01579B;" edge="1" parent="1" source="in_touch" target="box_mcu">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_button" value="Tín hiệu số (GPIO)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;entryX=0;entryY=0.45;strokeColor=#0288D1;strokeWidth=2;fontSize=10;fontColor=#01579B;" edge="1" parent="1" source="in_button" target="box_mcu">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_sensor" value="Tín hiệu Cảm biến" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;entryX=0;entryY=0.7;strokeColor=#0288D1;strokeWidth=2;fontSize=10;fontColor=#01579B;strokeDasharray=3 3;" edge="1" parent="1" source="in_sensor" target="box_mcu">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_power" value="Nguồn DC 5V/3.3V" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;entryX=0;entryY=0.9;strokeColor=#F57C00;strokeWidth=2;fontSize=10;fontColor=#E65100;" edge="1" parent="1" source="in_power" target="box_mcu">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ĐƯỜNG LIÊN KẾT TỪ MCU RA OUTPUTS -->
+        <mxCell id="edge_lcd" value="SPI1 (18 MHz)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.3;entryX=0;entryY=0.5;strokeColor=#388E3C;strokeWidth=2;fontSize=10;fontColor=#1B5E20;" edge="1" parent="1" source="box_mcu" target="out_lcd">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_relay" value="Tín hiệu điều khiển (GPIO)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.65;entryX=0;entryY=0.5;strokeColor=#388E3C;strokeWidth=2;fontSize=10;fontColor=#1B5E20;" edge="1" parent="1" source="box_mcu" target="out_relay">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_alarm" value="Cảnh báo đồ họa" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.85;entryX=0;entryY=0.5;strokeColor=#388E3C;strokeWidth=2;fontSize=10;fontColor=#1B5E20;" edge="1" parent="1" source="box_mcu" target="out_alarm">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- TIÊU ĐỀ SƠ ĐỒ KHỐI -->
+        <mxCell id="diagram_title" value="SƠ ĐỒ KHỐI HỆ THỐNG ĐIỀU KHIỂN VÀ GIÁM SÁT PHÒNG THÔNG MINH (INPUT - VXL - OUTPUT)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=16;fontStyle=1;fontColor=#003366;" vertex="1" parent="1">
+          <mxGeometry x="180" y="80" width="800" height="40" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
